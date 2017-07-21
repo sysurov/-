@@ -315,7 +315,103 @@ namespace URWPGSim2D.Strategy {
 
         }
         #endregion
+        #region NumberTen
+        //阿拉伯数字造型10
+        //程钰
+        //v0.1 07.21:Initial
+        //还没有进行动作转换（从阿拉伯数字转汉字）
+        //运气不好的话还是会一直转圈
+        //TODO:可以加一点策略，例如每条鱼游到距离自己最近的位置（节省时间减少碰撞，getVectorDistance）
+        //我感觉fishToPoint可以修改一下？让他不要那么蠢总是转转转
+        class NumberTenClass
+        {
+            private static int state = 0;
+            private static int times = 0;
+            static xna.Vector3[] targetVector = new xna.Vector3[9];
+            static float[] targetAngle = new float[9];
+            // 稳定标记
+            private static int[] eqFlag = new int[11];
 
+            static int[] targetVectorX1 = { -700, -700, -700, 0, 290, 670, 670, 470, 50 };
+            static int[] targetVectorZ1 = { -480, 200, 480, 120, 670, 300, -270, -670, -350 };
+            static float[] targetAngle1 = { 90, 90, 270, 90, 43, 300, 270, 230, 120 };
+
+            private static float deg2rad(float deg)
+            {
+                if (deg > 180) deg -= 360;
+                return (float)(Math.PI * deg / 180);
+            }
+
+            public static void movingTen(ref Mission mission, int teamId, ref Decision[] decisions)
+            {
+                // 仿真周期毫秒数
+                int msPerCycle = mission.CommonPara.MsPerCycle;
+                RoboFish[] fish = {
+                    mission.TeamsRef[teamId].Fishes[1],
+                    mission.TeamsRef[teamId].Fishes[2],
+                    mission.TeamsRef[teamId].Fishes[3],
+                    mission.TeamsRef[teamId].Fishes[4],
+                    mission.TeamsRef[teamId].Fishes[5],
+                    mission.TeamsRef[teamId].Fishes[6],
+                    mission.TeamsRef[teamId].Fishes[7],
+                    mission.TeamsRef[teamId].Fishes[8],
+                    mission.TeamsRef[teamId].Fishes[9] };
+                // Reserved，需要重编号功能以尽可能减少时间
+                if (state == 0)
+                {
+                    // 初始化
+                    /*
+                    for(int i = 0; i < 9; i++) 
+                        fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
+                    */
+                    state = 1;
+                    for (int i = 0; i < 11; i++)
+                    {
+                        eqFlag[i] = 0;
+                        timeForPoseToPose[i] = 0;
+                    }
+
+                    return;
+                }
+                else if (state == 1)
+                {
+                    // 装载10的第一个状态
+
+                    for (int i = 0; i < 9; i++)
+                    {
+                        targetVector[i].X = targetVectorX1[i];
+                        targetVector[i].Z = targetVectorZ1[i];
+                        targetAngle[i] = deg2rad(targetAngle1[i]);
+                        targetVector[i].Y = 0;
+                    }
+
+                    state = 2;
+                    return;
+                }
+                else if (state == 2)
+                {
+                    // 行动至10的第一个状态
+                    for (int i = 0; i < 9; i++)
+                    {
+                        //StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
+                        fishToPoint(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+                    }
+                    /* if (allEqual(eqFlag, 2, 3, 10))
+                     {
+                         for (int i = 0; i < 11; i++)
+                         {
+                             eqFlag[i] = 0;
+                             timeForPoseToPose[i] = 0;
+                         }
+                         state = 1;
+                     }*/
+                    return;
+                }
+                return;
+            }
+
+        }
+        #endregion
         public Decision[] GetDecision(Mission mission, int teamId) {
             // 决策类当前对象第一次调用GetDecision时Decision数组引用为null
             if (decisions == null) {// 根据决策类当前对象对应的仿真使命参与队伍仿真机器鱼的数量分配决策数组空间
