@@ -433,6 +433,7 @@ namespace URWPGSim2D.Strategy {
                         FishUse[p_n] = true;
                         FishDes[p_n] = p_d;
                         count--;
+                        s_d = float.MaxValue;
                     }
 
                     //暂时弃用的算法v0.1
