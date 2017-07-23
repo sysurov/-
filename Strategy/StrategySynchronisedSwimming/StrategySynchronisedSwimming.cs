@@ -34,7 +34,7 @@ namespace URWPGSim2D.Strategy {
         public string GetTeamName() {
             return "SYSU East Repairers";
         }
-
+        
         public static int isDirectionRight(float a, float b) {
             if (a > Math.PI)
                 a -= (float)(2 * Math.PI);
@@ -47,9 +47,9 @@ namespace URWPGSim2D.Strategy {
                 b += (float)(2 * Math.PI);
 
             if (a - b > 0.15)
-                return 1;//a在b右边
+                return 1;
             else if (a - b < -0.15)
-                return -1; //a在b左边
+                return -1;
             else
                 return 0;
         }
@@ -65,16 +65,16 @@ namespace URWPGSim2D.Strategy {
         public static bool isNearlyStable(int[] group, int value, int start, int end, int numToPass) {
             int counter = 0;
             for (int i = start; i <= end; i++)
-                if(group[i] == value)
+                if (group[i] == value)
                     counter++;
             return (counter >= numToPass) ? true : false;
         }
 
         // 
         public static bool allFishNearPoints(RoboFish[] group, xna.Vector3[] target, int start, int end, float aRadius) {
-            for(int i=start; i<=end; i++)
-                if ((Math.Pow(group[i].PositionMm.X-target[i].X,2)+ Math.Pow(group[i].PositionMm.Z - target[i].Z, 2)) > Math.Pow(aRadius,2))
-                        return false;
+            for (int i = start; i <= end; i++)
+                if ((Math.Pow(group[i].PositionMm.X - target[i].X, 2) + Math.Pow(group[i].PositionMm.Z - target[i].Z, 2)) > Math.Pow(aRadius, 2))
+                    return false;
             return true;
         }
 
@@ -128,22 +128,23 @@ namespace URWPGSim2D.Strategy {
                         flag[noOfFish] = 0;
                     break;
                 default:
-                    decisions.TCode = 7;
-                    decisions.VCode = 0;
+                    stopFish(ref decisions, noOfFish);
                     break;
             }
         }
 
-        public static void dribbleFishToPoint(ref Decision decisions, RoboFish fish, xna.Vector3 targetePoint, float targetDirection, int noOfFish, int[] flag) {
+        public static void fishToPointQuick(ref Decision decisions, RoboFish fish, xna.Vector3 targetePoint, float targetDirection, int noOfFish, ref int[] timeForPoseToPose, int[] flag) {
             switch (flag[noOfFish]) {
                 case 0:
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 100)
-                        Helpers.Dribble(ref decisions, fish, targetePoint, targetDirection, 5f, 10f, 50f, 14, 10, 6, 100, false);
-                    if (getVectorDistance(targetePoint, fish.PositionMm) < 100)
+                    if (getVectorDistance(targetePoint, fish.PositionMm) > 180)
+                        Helpers.PoseToPose(ref decisions, fish, targetePoint, targetDirection, 45f, 50f, 100, ref timeForPoseToPose[noOfFish]);
+                    if (getVectorDistance(targetePoint, fish.PositionMm) <= 180)
                         flag[noOfFish] = 1;
                     break;
                 case 1:
-                    if (isDirectionRight(targetDirection, fish.BodyDirectionRad) < 0) {
+                    if (getVectorDistance(targetePoint, fish.PositionMm) > 250)
+                        flag[noOfFish] = 0;
+                    else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) < 0) {
                         decisions.TCode = 0;
                         decisions.VCode = 1;
                     } else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) > 0) {
@@ -153,90 +154,206 @@ namespace URWPGSim2D.Strategy {
                         flag[noOfFish] = 2;
                         stopFish(ref decisions, noOfFish);
                     }
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 150)
-                        flag[noOfFish] = 0;
                     break;
                 case 2:
-                    if (isDirectionRight(targetDirection, fish.BodyDirectionRad) < 0) {
-                        decisions.TCode = 0;
-                        decisions.VCode = 1;
-                    } else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) > 0) {
-                        decisions.TCode = 14;
-                        decisions.VCode = 1;
-                    } else
-                        stopFish(ref decisions, noOfFish);
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 150)
+                    if (getVectorDistance(targetePoint, fish.PositionMm) > 250)
                         flag[noOfFish] = 0;
+                    else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) != 0)
+                        flag[noOfFish] = 1;
+                    else
+                        stopFish(ref decisions, noOfFish);
                     break;
                 default:
-                    decisions.TCode = 7;
-                    decisions.VCode = 0;
+                    stopFish(ref decisions, noOfFish);
                     break;
-
             }
         }
 
         public static int completeCircle = 0;
         Decision[] preDecisions = null;
 
-        private static int flag = 0;//主函数标志值
+        // 表演阶段标记
+        private static int stage = 2;
 
         private static int timeflag = 0;
         private static int[] timeForPoseToPose = new int[11];
-        private static bool complete = false;
-        private static int[] startRoadflag = new int[11];
-        private static int[] hillflag = new int[11];
-        private static int[] oneflag = new int[11];
-        private static int[] playflag = new int[11];
-        private static int[] circleflag = new int[11];
+        private static bool completeFlag = false;
 
         /// <summary>
-        /// 获取当前仿真使命（比赛项目）当前队伍所有仿真机器鱼的决策数据构成的数组
+        /// “运动的心”造型类
         /// </summary>
-        /// <param name="mission">服务端当前运行着的仿真使命Mission对象</param>
-        /// <param name="teamId">当前队伍在服务端运行着的仿真使命中所处的编号 
-        /// 用于作为索引访问Mission对象的TeamsRef队伍列表中代表当前队伍的元素</param>
-        /// <returns>当前队伍所有仿真机器鱼的决策数据构成的Decision数组对象</returns>
-
-        #region 动态心
         // 心造型，顺时针旋转，假设开始时所有的鱼接近初始目标点（需要重编号）
         // 模块负责人：联航
-        // v0.1 07.19: 初始版本，确定心脏的目标点
-        private static int state = 0;
+        // 07.19: 初始版本，确定心脏的目标点
+        // 07.20: 完成动作部分
+        // 07.23: 增加5秒延时功能和总动作超时failsafe功能
+        // TODO:
+        //  加入每一分动作的超时failsafe
+        class MovingHeartClass {
 
-        class movingHeartClass {
-
-            
-            private static int round = 0;
+            // 旋转次数控制
+            private static int cycleDownCounter = 2;
+            // 状态机
+            private static int state = 0;
+            // 阶段状态标记
+            private static bool heartStageFlag = true;
+            // 计时器与超时
+            private static long timer=0;
+            private static long timingLimit;
+            private static int endingDelay;
 
             // 稳定标记
             private static int[] eqFlag = new int[11];
 
-            // 阶段状态标记
-            private static bool heartStageFlag = true;
+            private static xna.Vector3[] targetVector = new xna.Vector3[9];
+            private static float[] targetAngle = new float[9];
 
-            static xna.Vector3[] targetVector=new xna.Vector3[9];
-            static float[] targetAngle = new float[9];
+            // 目标点与角度数据#1
+            private static int[] targetVectorX1 = { -1100, -528, 120, 738, 1200, 918, 300, -450, -1100 };
+            private static int[] targetVectorZ1 = { -510, -800, -320, -800, -288, 320, 1000, 800, 100 };
+            private static float[] targetAngle1 = { 300, 0, 0, 0, 60, 130, 130, 230, 230 };
 
-            static int[] targetVectorX1 = { -1100, -528, 120, 738, 1200, 918, 300, -450, -1100 };
-            static int[] targetVectorZ1 = { -510, -800, -320, -800, -288, 320, 1000, 800, 100 };
-            static float[] targetAngle1 = { 300, 0, 0, 0, 60, 130, 130, 230, 230 };
+            // 目标点与角度数据#2
+            private static int[] targetVectorX2 = { -1026, -798, -168, 372, 1002, 1032, 642, -60, -648 };
+            private static int[] targetVectorZ2 = { -96, -708, -456, -630, -558, 108, 762, 1068, 594 };
+            private static float[] targetAngle2 = { 260, 320, 60, 300, 40, 100, 130, 180, 230 };
 
-            static int[] targetVectorX2 = { -1026, -798, -168, 372, 1002, 1032, 642, -60, -648 };
-            static int[] targetVectorZ2 = { -96, -708, -456, -630, -558, 108, 762, 1068, 594 };
-            static float[] targetAngle2 = { 260, 320, 60, 300, 40, 100, 130, 180, 230 };
+            private static RoboFish[] fish = new RoboFish[9];
 
+            // 相对编号偏移量，转圈用
             private static int fishIDShift = 0;
+
+            // 角度转弧度，为了一定的可读性
+            private static float deg2rad(float deg) {
+                if (deg > 180) deg -= 360;
+                return (float)(Math.PI * deg / 180);
+            }
+
+            /// <summary>
+            /// 获取当前仿真使命（比赛项目）当前队伍所有仿真机器鱼的决策数据构成的数组
+            /// </summary>
+            /// <param name="mission">服务端当前运行着的仿真使命Mission对象</param>
+            /// <param name="teamId">当前队伍在服务端运行着的仿真使命中所处的编号 
+            /// 用于作为索引访问Mission对象的TeamsRef队伍列表中代表当前队伍的元素</param>
+            /// <returns>当前队伍所有仿真机器鱼的决策数据构成的Decision数组对象</returns>
+            public static void movingHeart(ref Mission mission, int teamId, ref Decision[] decisions) {
+                // StreamWriter log = new StreamWriter("C:\\log.txt", true);
+                // log.Close();
+
+                // 仿真周期毫秒数
+                int msPerCycle = mission.CommonPara.MsPerCycle;
+
+                for (int i = 0; i < 9; i++)
+                    fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
+                // Reserved，需要重编号功能以尽可能减少时间
+                if (state == 0) {
+                    // 初始化
+                    // 计时上限设置为1.5分钟
+                    // 07.23测试设置为0.5分钟
+                    timingLimit = (1) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+                    // 结尾等待时间设定为5秒
+                    endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+
+                    for (int i = 0; i < 11; i++) {
+                        eqFlag[i] = 0;
+                        timeForPoseToPose[i] = 0;
+                    }
+                    state = 1;
+
+                } else if (state == 1) {
+                    // 装载心的第一个状态
+                    if (heartStageFlag) {
+                        for (int i = 0; i < 9; i++) {
+                            targetVector[i].X = targetVectorX1[i];
+                            targetVector[i].Z = targetVectorZ1[i];
+                            targetAngle[i] = deg2rad(targetAngle1[i]);
+                            targetVector[i].Y = 0;
+                        }
+                    } else {
+                        for (int i = 0; i < 9; i++) {
+                            targetVector[i].X = targetVectorX2[i];
+                            targetVector[i].Z = targetVectorZ2[i];
+                            targetAngle[i] = deg2rad(targetAngle2[i]);
+                            targetVector[i].Y = 0;
+                        }
+                    }
+                    state = 2;
+
+                } else if (state == 2) {
+                    // 行动至心的第一个状态
+                    for (int i = 0; i < 9; i++) {
+                        int j;
+                        if (i - fishIDShift < 0) j = 9 + i - fishIDShift;
+                        else j = i - fishIDShift;
+                        fishToPointQuick(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+                    }
+                    if (allEqual(eqFlag, 2, 3, 10)) {
+                        for (int i = 0; i < 11; i++) {
+                            eqFlag[i] = 0;
+                            timeForPoseToPose[i] = 0;
+                        }
+                        if (cycleDownCounter == 0) {
+                            // 旋转结束，为5秒计时清空计时器
+                            timer = 0;
+                            state = 4;
+                        } else {
+                            // 再转一圈
+                            cycleDownCounter -= 1;
+                            state = 3;
+                        }
+                    }
+
+                    // 总动作时间超时确认，全部停止运动，跳转到下个项目
+                    if(timer >= timingLimit) {
+                        for (int i=0; i<9; i++) 
+                            stopFish(ref decisions[i], i + 2);
+
+                        stage++;
+                    }
+
+                } else if (state == 3) {
+                    if (heartStageFlag) fishIDShift++;
+                    heartStageFlag = !heartStageFlag;
+                    state = 1;
+
+                } else if (state == 4) {
+                    if (timer >= endingDelay) {
+                        // 5秒计时结束
+                        stage++;
+                    }
+                }
+                timer++;
+                return;
+            }
+
+        }
+
+        #region NumberTen
+        //阿拉伯数字造型10
+        //程钰
+        //v0.1 07.21:Initial
+        //还没有进行动作转换（从阿拉伯数字转汉字）
+        //运气不好的话还是会一直转圈
+        //TODO:可以加一点策略，例如每条鱼游到距离自己最近的位置（节省时间减少碰撞，getVectorDistance）
+        //我感觉fishToPoint可以修改一下？让他不要那么蠢总是转转转
+        class NumberTenClass {
+            private static int state = 0;
+            private static int times = 0;
+            static xna.Vector3[] targetVector = new xna.Vector3[9];
+            static float[] targetAngle = new float[9];
+            // 稳定标记
+            private static int[] eqFlag = new int[11];
+
+            static int[] targetVectorX1 = { -700, -700, -700, 0, 290, 670, 670, 470, 50 };
+            static int[] targetVectorZ1 = { -480, 200, 480, 120, 670, 300, -270, -670, -350 };
+            static float[] targetAngle1 = { 90, 90, 270, 90, 43, 300, 270, 230, 120 };
 
             private static float deg2rad(float deg) {
                 if (deg > 180) deg -= 360;
                 return (float)(Math.PI * deg / 180);
             }
 
-            public static void movingHeart(ref Mission mission, int teamId, ref Decision[] decisions) {
-                // StreamWriter log = new StreamWriter("C:\\log.txt", true);
-                // log.Close();
-
+            public static void movingTen(ref Mission mission, int teamId, ref Decision[] decisions) {
                 // 仿真周期毫秒数
                 int msPerCycle = mission.CommonPara.MsPerCycle;
                 RoboFish[] fish = {
@@ -261,124 +378,12 @@ namespace URWPGSim2D.Strategy {
                         eqFlag[i] = 0;
                         timeForPoseToPose[i] = 0;
                     }
-                    
+
                     return;
                 } else if (state == 1) {
-                    // 装载心的第一个状态
-                    if (heartStageFlag) {
-                        for (int i = 0; i < 9; i++) {
-                            targetVector[i].X = targetVectorX1[i];
-                            targetVector[i].Z = targetVectorZ1[i];
-                            targetAngle[i] = deg2rad(targetAngle1[i]);
-                            targetVector[i].Y = 0;
-                        }
-                    } else {
-                        for (int i = 0; i < 9; i++) {
-                            targetVector[i].X = targetVectorX2[i];
-                            targetVector[i].Z = targetVectorZ2[i];
-                            targetAngle[i] = deg2rad(targetAngle2[i]);
-                            targetVector[i].Y = 0;
-                        }
-                    }
-                    
-                    state = 2;
-                    return;
-                } else if (state == 2) {
-                    // 行动至心的第一个状态
-                    for (int i = 0; i < 9; i++) {
-                        int j;
-                        if (i - fishIDShift <0) j = 9 + i - fishIDShift;
-                        else j = i - fishIDShift;
-                        fishToPoint(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
-                    }
-
-                    if (allEqual(eqFlag, 2, 3, 10)) {
-                        for (int i = 0; i < 11; i++) {
-                            eqFlag[i] = 0;
-                            timeForPoseToPose[i] = 0;
-                        }
-                        // state = 1;
-                        state = 3;
-                    }
-                    return;
-                } else if (state == 3) {
-                    //fishSwap(ref fish);
-                    if(heartStageFlag) fishIDShift++;
-                    heartStageFlag = !heartStageFlag;
-                    state = 1;
-
-                    return;
-                }
-                return;
-
-            }
-
-        }
-        #endregion
-        #region NumberTen
-        //阿拉伯数字造型10
-        //程钰
-        //v0.1 07.21:Initial
-        //还没有进行动作转换（从阿拉伯数字转汉字）
-        //运气不好的话还是会一直转圈
-        //TODO:可以加一点策略，例如每条鱼游到距离自己最近的位置（节省时间减少碰撞，getVectorDistance）
-        //我感觉fishToPoint可以修改一下？让他不要那么蠢总是转转转
-        class NumberTenClass
-        {
-            private static int state = 0;
-            private static int times = 0;
-            static xna.Vector3[] targetVector = new xna.Vector3[9];
-            static float[] targetAngle = new float[9];
-            // 稳定标记
-            private static int[] eqFlag = new int[11];
-
-            static int[] targetVectorX1 = { -700, -700, -700, 0, 290, 670, 670, 470, 50 };
-            static int[] targetVectorZ1 = { -480, 200, 480, 120, 670, 300, -270, -670, -350 };
-            static float[] targetAngle1 = { 90, 90, 270, 90, 43, 300, 270, 230, 120 };
-
-            private static float deg2rad(float deg)
-            {
-                if (deg > 180) deg -= 360;
-                return (float)(Math.PI * deg / 180);
-            }
-
-            public static void movingTen(ref Mission mission, int teamId, ref Decision[] decisions)
-            {
-                // 仿真周期毫秒数
-                int msPerCycle = mission.CommonPara.MsPerCycle;
-                RoboFish[] fish = {
-                    mission.TeamsRef[teamId].Fishes[1],
-                    mission.TeamsRef[teamId].Fishes[2],
-                    mission.TeamsRef[teamId].Fishes[3],
-                    mission.TeamsRef[teamId].Fishes[4],
-                    mission.TeamsRef[teamId].Fishes[5],
-                    mission.TeamsRef[teamId].Fishes[6],
-                    mission.TeamsRef[teamId].Fishes[7],
-                    mission.TeamsRef[teamId].Fishes[8],
-                    mission.TeamsRef[teamId].Fishes[9] };
-                // Reserved，需要重编号功能以尽可能减少时间
-                if (state == 0)
-                {
-                    // 初始化
-                    /*
-                    for(int i = 0; i < 9; i++) 
-                        fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
-                    */
-                    state = 1;
-                    for (int i = 0; i < 11; i++)
-                    {
-                        eqFlag[i] = 0;
-                        timeForPoseToPose[i] = 0;
-                    }
-
-                    return;
-                }
-                else if (state == 1)
-                {
                     // 装载10的第一个状态
 
-                    for (int i = 0; i < 9; i++)
-                    {
+                    for (int i = 0; i < 9; i++) {
                         targetVector[i].X = targetVectorX1[i];
                         targetVector[i].Z = targetVectorZ1[i];
                         targetAngle[i] = deg2rad(targetAngle1[i]);
@@ -387,12 +392,9 @@ namespace URWPGSim2D.Strategy {
 
                     state = 2;
                     return;
-                }
-                else if (state == 2)
-                {
+                } else if (state == 2) {
                     // 行动至10的第一个状态
-                    for (int i = 0; i < 9; i++)
-                    {
+                    for (int i = 0; i < 9; i++) {
                         //StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
                         fishToPoint(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
                     }
@@ -412,6 +414,7 @@ namespace URWPGSim2D.Strategy {
 
         }
         #endregion
+
         public Decision[] GetDecision(Mission mission, int teamId) {
             // 决策类当前对象第一次调用GetDecision时Decision数组引用为null
             if (decisions == null) {// 根据决策类当前对象对应的仿真使命参与队伍仿真机器鱼的数量分配决策数组空间
@@ -470,10 +473,30 @@ namespace URWPGSim2D.Strategy {
             //}
             //====================我是华丽的分割线====================//
             #endregion
+            
+            // 表演顺序：
+            //  Ⅰ.标准动作阶段
+            // #0   1. 一个包含阿拉伯数字的造型：数字10
+            // #1   2. 一个包含汉字的造型：人
+            // #2   3. 动态封闭图形： 运动的心
+            //  II.自由动作阶段
+            // #3   1.黄鱼互动：？
+
+            switch (stage) {
+                case 0: NumberTenClass.movingTen(ref mission, teamId, ref decisions);
+                    break;
+                case 1: stage++; // 尚未完成
+                    break;
+                case 2: MovingHeartClass.movingHeart(ref mission, teamId, ref decisions);
+                    break;
+                case 3: stage++; // 尚未完成
+                    break;
+                case 4: 
+                default: completeFlag = true;
+                    break;
+            }
 
             #endregion
-            movingHeartClass.movingHeart(ref mission, teamId, ref decisions);
-            // movingCircle(ref mission, teamId, ref decisions);
             return decisions;
         }
     }
