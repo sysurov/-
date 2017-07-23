@@ -331,29 +331,35 @@ namespace URWPGSim2D.Strategy {
         #region NumberTen
         //阿拉伯数字造型10
         //程钰
-        //v0.1 07.21:Initial
-        //还没有进行动作转换（从阿拉伯数字转汉字）
+        //v0.2 07.24:加入最近算法
         //运气不好的话还是会一直转圈
-        //TODO:可以加一点策略，例如每条鱼游到距离自己最近的位置（节省时间减少碰撞，getVectorDistance）
         //我感觉fishToPoint可以修改一下？让他不要那么蠢总是转转转
-        class NumberTenClass {
+        //算法还没debug，肉眼debug没啥问题= =
+        class NumberTenClass
+        {
             private static int state = 0;
             private static int times = 0;
             static xna.Vector3[] targetVector = new xna.Vector3[9];
             static float[] targetAngle = new float[9];
             // 稳定标记
             private static int[] eqFlag = new int[11];
+            private static bool[] DesUse = { false, false, false, false, false, false, false, false, false };
+            private static bool[] FishUse = { false, false, false, false, false, false, false, false, false };
+            private static int[] FishDes = new int[9];  //鱼的目标点
 
             static int[] targetVectorX1 = { -700, -700, -700, 0, 290, 670, 670, 470, 50 };
             static int[] targetVectorZ1 = { -480, 200, 480, 120, 670, 300, -270, -670, -350 };
             static float[] targetAngle1 = { 90, 90, 270, 90, 43, 300, 270, 230, 120 };
 
-            private static float deg2rad(float deg) {
+            private static float deg2rad(float deg)
+            {
                 if (deg > 180) deg -= 360;
                 return (float)(Math.PI * deg / 180);
             }
 
-            public static void movingTen(ref Mission mission, int teamId, ref Decision[] decisions) {
+
+            public static void movingTen(ref Mission mission, int teamId, ref Decision[] decisions)
+            {
                 // 仿真周期毫秒数
                 int msPerCycle = mission.CommonPara.MsPerCycle;
                 RoboFish[] fish = {
@@ -366,37 +372,98 @@ namespace URWPGSim2D.Strategy {
                     mission.TeamsRef[teamId].Fishes[7],
                     mission.TeamsRef[teamId].Fishes[8],
                     mission.TeamsRef[teamId].Fishes[9] };
-                // Reserved，需要重编号功能以尽可能减少时间
-                if (state == 0) {
+
+                float[,] distance = new float[9, 9];
+                // 鱼到目标点的距离矩阵
+                if (state == 0)
+                {
                     // 初始化
-                    /*
-                    for(int i = 0; i < 9; i++) 
-                        fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
-                    */
                     state = 1;
-                    for (int i = 0; i < 11; i++) {
+                    for (int i = 0; i < 11; i++)
+                    {
                         eqFlag[i] = 0;
                         timeForPoseToPose[i] = 0;
                     }
-
                     return;
-                } else if (state == 1) {
+                }
+                else if (state == 1)
+                {
                     // 装载10的第一个状态
-
-                    for (int i = 0; i < 9; i++) {
+                    for (int i = 0; i < 9; i++)
+                    {
                         targetVector[i].X = targetVectorX1[i];
                         targetVector[i].Z = targetVectorZ1[i];
                         targetAngle[i] = deg2rad(targetAngle1[i]);
                         targetVector[i].Y = 0;
                     }
+                    //float distance = float.MaxValue;
+                    int p_d = -1; //目标点的编号
+                    int p_n = -1; //鱼的编号
+                    float s_d = float.MaxValue; //最小的距离
+                    for (int i = 0; i < 9; i++)
+                    {
+                        for (int j = 0; j < 9; j++)
+                        {
+                            distance[i, j] = getVectorDistance(targetVector[j], fish[i].PositionMm);
+                        }
+                    }
+                    int count = 9;
+                    while (count > 0)
+                    {
+
+                        for (int i = 0; i < 9; i++)
+                        {
+                            //如果这条鱼已经有目标点
+                            if (FishUse[i])
+                                continue;
+                            for (int j = 0; j < 9; j++)
+                            {
+                                //如果这个目标点已经有鱼
+                                if (DesUse[j])
+                                    continue;
+                                if (distance[i, j] < s_d)
+                                {
+                                    s_d = distance[i, j];
+                                    p_n = i;
+                                    p_d = j;
+                                }
+                            }
+                        }
+                        DesUse[p_d] = true;
+                        FishUse[p_n] = true;
+                        FishDes[p_n] = p_d;
+                        count--;
+                    }
+
+                    //暂时弃用的算法v0.1
+                    /*for (int i = 0; i < 9; i++)
+                    {
+                        for (int j = 0; j < 9; j++)
+                        {
+                            if (DesUse[j])
+                                continue;
+                            float tmp = getVectorDistance(targetVector[j], fish[i].PositionMm);
+                            if (tmp < distance)
+                            {
+                                distance = tmp;
+                                p_d = j;
+                            }
+                        }
+                        FishDes[i] = p_d;
+                        DesUse[p_d] = true;
+                    }*/
 
                     state = 2;
                     return;
-                } else if (state == 2) {
+                }
+                else if (state == 2)
+                {
                     // 行动至10的第一个状态
-                    for (int i = 0; i < 9; i++) {
+
+                    for (int i = 0; i < 9; i++)
+                    {
                         //StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
-                        fishToPoint(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+                        fishToPoint(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
                     }
                     /* if (allEqual(eqFlag, 2, 3, 10))
                      {
