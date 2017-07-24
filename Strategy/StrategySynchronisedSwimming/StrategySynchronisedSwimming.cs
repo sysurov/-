@@ -27,11 +27,22 @@ namespace URWPGSim2D.Strategy {
         /// 决策类当前对象对应的仿真使命参与队伍的决策数组引用 第一次调用GetDecision时分配空间
         /// </summary>
         private Decision[] decisions = null;
-        /// <summary>
-        /// 获取队伍名称 在此处设置参赛队伍的名称
-        /// </summary>
-        /// <returns>队伍名称字符串</returns>
-        public string GetTeamName() {
+
+		public static int completeCircle = 0;
+		Decision[] preDecisions = null;
+
+		// 表演阶段标记
+		private static int stage = 2;
+
+		private static int timeflag = 0;
+		private static int[] timeForPoseToPose = new int[11];
+		private static bool completeFlag = false;
+
+		/// <summary>
+		/// 获取队伍名称 在此处设置参赛队伍的名称
+		/// </summary>
+		/// <returns>队伍名称字符串</returns>
+		public string GetTeamName() {
             return "SYSU East Repairers";
         }
         
@@ -91,22 +102,28 @@ namespace URWPGSim2D.Strategy {
 
 		// 角度转弧度，为了一定的可读性
 		private static float deg2rad(float deg) {
-			if (deg > 180) deg -= 360;
-			return (float)(Math.PI * deg / 180);
+			double rad = (Math.PI * deg / 180);
+			if (rad > Math.PI)
+				rad -= (float)(2 * Math.PI);
+			if (rad < -Math.PI)
+				rad += (float)(2 * Math.PI);
+
+			return (float)rad;
 		}
 
-		public static void fishToPoint(ref Decision decisions, RoboFish fish, xna.Vector3 targetePoint, float targetDirection, int noOfFish, ref int[] timeForPoseToPose, int[] flag) {
-            switch (flag[noOfFish]) {
+		public static void fish2Point(	ref Decision decisions, RoboFish fish, xna.Vector3 targetPoint, float targetDirection,
+										int fishId, ref int[] timeForPoseToPose, int[] flag) {
+            switch (flag[fishId]) {
                 case 0:
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 100) {
-                        Helpers.PoseToPose(ref decisions, fish, targetePoint, targetDirection, 6f, 10f, 100, ref timeForPoseToPose[noOfFish]);
-                    }
-                    //  Helpers.PoseToPose(ref decisions, fish, targetePoint, targetDirection, 6f, 10f, 50, ref timeForPoseToPose[noOfFish]);
-                    if (getVectorDistance(targetePoint, fish.PositionMm) < 100) {
-                        flag[noOfFish] = 1;
-                    }
+					// 距离目标点超过100，调用p2p函数，当处于目标点附近100mm的范围内时，进入下一个状态
+                    if (getVectorDistance(targetPoint, fish.PositionMm) > 100)
+                        Helpers.PoseToPose(ref decisions, fish, targetPoint, targetDirection, 6f, 10f, 100, ref timeForPoseToPose[fishId]);
+                    if (getVectorDistance(targetPoint, fish.PositionMm) < 100)
+                        flag[fishId] = 1;
                     break;
                 case 1:
+					// 角度调整至期望的角度，此时因为速度值不能为0，鱼可能会继续前进，因此将距离范围阈值调整至150
+					// 当角度处于期望的范围内，进入下个状态，如果滑出了距离范围，重新开始整个过程
                     if (isDirectionRight(targetDirection, fish.BodyDirectionRad) < 0) {
                         decisions.TCode = 0;
                         decisions.VCode = 1;
@@ -114,42 +131,46 @@ namespace URWPGSim2D.Strategy {
                         decisions.TCode = 14;
                         decisions.VCode = 1;
                     } else {
-                        flag[noOfFish] = 2;
-                        stopFish(ref decisions, noOfFish);
+                        flag[fishId] = 2;
+                        stopFish(ref decisions, fishId);
                     }
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 150)
-                        flag[noOfFish] = 0;
+                    if (getVectorDistance(targetPoint, fish.PositionMm) > 150)
+                        flag[fishId] = 0;
                     break;
                 case 2:
+					// 重复上一个阶段，如果ok，结束
                     if (isDirectionRight(targetDirection, fish.BodyDirectionRad) < 0) {
                         decisions.TCode = 0;
                         decisions.VCode = 1;
                     } else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) > 0) {
                         decisions.TCode = 14;
                         decisions.VCode = 1;
-                    } else {
-                        stopFish(ref decisions, noOfFish);
-                    }
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 150)
-                        flag[noOfFish] = 0;
+                    } else
+                        stopFish(ref decisions, fishId);
+                    if (getVectorDistance(targetPoint, fish.PositionMm) > 150)
+                        flag[fishId] = 0;
                     break;
                 default:
-                    stopFish(ref decisions, noOfFish);
+					// 反常状态
+                    stopFish(ref decisions, fishId);
                     break;
             }
         }
 
-        public static void fishToPointQuick(ref Decision decisions, RoboFish fish, xna.Vector3 targetePoint, float targetDirection, int noOfFish, ref int[] timeForPoseToPose, int[] flag) {
-            switch (flag[noOfFish]) {
+        public static void fish2Point_Fast(	ref Decision decisions, RoboFish fish, xna.Vector3 targetPoint, float targetDirection,
+											int fishId, ref int[] timeForPoseToPose, int[] flag) {
+            switch (flag[fishId]) {
                 case 0:
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 180)
-                        Helpers.PoseToPose(ref decisions, fish, targetePoint, targetDirection, 45f, 50f, 100, ref timeForPoseToPose[noOfFish]);
-                    if (getVectorDistance(targetePoint, fish.PositionMm) <= 180)
-                        flag[noOfFish] = 1;
+					// 与原类似
+                    if (getVectorDistance(targetPoint, fish.PositionMm) > 180)
+                        Helpers.PoseToPose(ref decisions, fish, targetPoint, targetDirection, 45f, 50f, 100, ref timeForPoseToPose[fishId]);
+                    if (getVectorDistance(targetPoint, fish.PositionMm) <= 180)
+                        flag[fishId] = 1;
                     break;
                 case 1:
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 250)
-                        flag[noOfFish] = 0;
+					// 与原类似
+                    if (getVectorDistance(targetPoint, fish.PositionMm) > 250)
+                        flag[fishId] = 0;
                     else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) < 0) {
                         decisions.TCode = 0;
                         decisions.VCode = 1;
@@ -157,40 +178,113 @@ namespace URWPGSim2D.Strategy {
                         decisions.TCode = 14;
                         decisions.VCode = 1;
                     } else {
-                        flag[noOfFish] = 2;
-                        stopFish(ref decisions, noOfFish);
+                        flag[fishId] = 2;
+                        stopFish(ref decisions, fishId);
                     }
                     break;
                 case 2:
-                    if (getVectorDistance(targetePoint, fish.PositionMm) > 250)
-                        flag[noOfFish] = 0;
+					// ？？？，比原方案增加了一些调整
+                    if (getVectorDistance(targetPoint, fish.PositionMm) > 250)
+                        flag[fishId] = 0;
                     else if (isDirectionRight(targetDirection, fish.BodyDirectionRad) != 0)
-                        flag[noOfFish] = 1;
+                        flag[fishId] = 1;
                     else
-                        stopFish(ref decisions, noOfFish);
+                        stopFish(ref decisions, fishId);
                     break;
                 default:
-                    stopFish(ref decisions, noOfFish);
+                    stopFish(ref decisions, fishId);
                     break;
             }
         }
 
-        public static int completeCircle = 0;
-        Decision[] preDecisions = null;
+		public static bool isInSector(	xna.Vector3 point, xna.Vector3 targetPoint,
+										int sectorR, float sectorTheta, float sectorBaseAngle) {
+			if (Math.Pow(targetPoint.X-point.X,2)+Math.Pow(targetPoint.Z-point.Z,2) > Math.Pow(sectorR,2))
+				// 点在整圆外
+				return false;
+			else {
+				// 首先求和扇形中线的夹角
+				double theta = (sectorBaseAngle - (Math.Atan((float)(targetPoint.X - point.X) / (float)(targetPoint.Z - point.Z))));
+				if (Math.Abs(theta) < sectorTheta)
+					return true;
+				else
+					return false;
+			}
+		}
 
-        // 表演阶段标记
-        private static int stage = 2;
+		public static int isDirectionInRange(float targetDir, float dir, float dirRange) {
+			if (targetDir > Math.PI)
+				targetDir -= (float)(2 * Math.PI);
+			if (targetDir < -Math.PI)
+				targetDir += (float)(2 * Math.PI);
 
-        private static int timeflag = 0;
-        private static int[] timeForPoseToPose = new int[11];
-        private static bool completeFlag = false;
+			if (dir > Math.PI)
+				dir -= (float)(2 * Math.PI);
+			if (dir < -Math.PI)
+				dir += (float)(2 * Math.PI);
 
+			if (targetDir - dir > dirRange)
+				return 1;
+			else if (targetDir - dir < -dirRange)
+				return -1;
+			else
+				return 0;
+		}
+
+		// 只要在目标点前方（由targetDir确定）圆心角2*tSectorTheta，半径tSectorR的扇形区域内，角度与targetDir的偏差在±tTheta内都认定为已经到达目标点
+		public static void fish2Point_Forward(	ref Decision decisions, RoboFish fish, xna.Vector3 targetPoint, float targetDirection,
+												int fishId, ref int[] timeForPoseToPose, int[] flag,
+												int tSectorR, float tSectorTheta, float tTheta, int tDistance) {
+			switch (flag[fishId]) {
+				case 0:
+					if (getVectorDistance(targetPoint, fish.PositionMm) > tDistance && !isInSector(fish.PositionMm, targetPoint, tSectorR, tSectorTheta, targetDirection))
+						Helpers.PoseToPose(ref decisions, fish, targetPoint, targetDirection, 6f, 10f, 100, ref timeForPoseToPose[fishId]);
+					if (getVectorDistance(targetPoint, fish.PositionMm) < tDistance || isInSector(fish.PositionMm, targetPoint, tSectorR, tSectorR, targetDirection))
+						flag[fishId] = 1;
+					break;
+				case 1:
+					if (getVectorDistance(targetPoint, fish.PositionMm) > tDistance && !isInSector(fish.PositionMm, targetPoint, tSectorR, tSectorTheta, targetDirection))
+						flag[fishId] = 0;
+					else if (isDirectionInRange(targetDirection, fish.BodyDirectionRad, tTheta) < 0) {
+						decisions.TCode = 0;
+						decisions.VCode = 1;
+					} else if (isDirectionInRange(targetDirection, fish.BodyDirectionRad, tTheta) > 0) {
+						decisions.TCode = 14;
+						decisions.VCode = 1;
+					} else {
+						flag[fishId] = 2;
+						stopFish(ref decisions, fishId);
+					}
+					break;
+				case 2:
+					if (getVectorDistance(targetPoint, fish.PositionMm) > (tDistance * 3 / 2) && !isInSector(fish.PositionMm, targetPoint, tSectorR, tSectorTheta, targetDirection))
+						flag[fishId] = 0;
+					else if (isDirectionInRange(targetDirection, fish.BodyDirectionRad, tTheta) != 0)
+						flag[fishId] = 1;
+					else
+						stopFish(ref decisions, fishId);
+					break;
+
+				default:
+					// 反常状态
+					stopFish(ref decisions, fishId);
+					break;
+			// 使用poseToPose进行运动
+		}
+		}
+
+		// 倾向于走弧线的运动算法，预期运动半径为arcR
+		public static void fish2Point_Arc(	ref Decision decisons, RoboFish fish, xna.Vector3 targetPoint, float targetAngle,
+											int fishId, ref int[] timeForPoseToPose, int[] flag,
+											int arcR) {
+
+		}
         #region NumberTen
         //阿拉伯数字造型10
         //程钰
         //v0.2 07.24:加入最近算法
         //运气不好的话还是会一直转圈
-        //我感觉fishToPoint可以修改一下？让他不要那么蠢总是转转转
+        //我感觉fish2Point可以修改一下？让他不要那么蠢总是转转转
         //算法还没debug，肉眼debug没啥问题= =
         class NumberTenClass
         {
@@ -321,7 +415,7 @@ namespace URWPGSim2D.Strategy {
                     for (int i = 0; i < 9; i++)
                     {
                         //StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
-                        fishToPoint(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+                        fish2Point(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
                     }
                     /* if (allEqual(eqFlag, 2, 3, 10))
                      {
@@ -355,7 +449,7 @@ namespace URWPGSim2D.Strategy {
 		class MovingHeartClass {
 
 			// 旋转次数控制
-			private static int cycleDownCounter = 2;
+			private static int cycleDownCounter = 5;
 			// 状态机
 			private static int state = 0;
 			// 阶段状态标记
@@ -379,7 +473,7 @@ namespace URWPGSim2D.Strategy {
 			// 目标点与角度数据#2
 			private static int[] targetVectorX2 = { -1026, -798, -168, 372, 1002, 1032, 642, -60, -648 };
 			private static int[] targetVectorZ2 = { -96, -708, -456, -630, -558, 108, 762, 1068, 594 };
-			private static float[] targetAngle2 = { 260, 320, 60, 300, 40, 100, 130, 180, 230 };
+			private static float[] targetAngle2 = { 260, 320, 60, 300, 40, 100, 130, 170, 230 };
 
 			private static RoboFish[] fish = new RoboFish[9];
 
@@ -406,8 +500,8 @@ namespace URWPGSim2D.Strategy {
 				if (state == 0) {
 					// 初始化
 					// 计时上限设置为1.5分钟
-					// 07.23测试设置为0.5分钟
-					timingLimit = (1) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+					// 07.23测试设置为10分钟
+					timingLimit = (20) * 30 * 1000 / mission.CommonPara.MsPerCycle;
 					// 结尾等待时间设定为5秒
 					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
 
@@ -442,7 +536,11 @@ namespace URWPGSim2D.Strategy {
 						int j;
 						if (i - fishIDShift < 0) j = 9 + i - fishIDShift;
 						else j = i - fishIDShift;
-						fishToPointQuick(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+						if (fishIDShift == 0)
+							// 初始归位
+							fish2Point_Fast(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+						else
+							fish2Point_Forward(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag, 300, deg2rad(30), deg2rad(180), 200);
 					}
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
@@ -483,6 +581,162 @@ namespace URWPGSim2D.Strategy {
 				return;
 			}
 
+		}
+		#endregion
+
+		#region surroundRandomFish
+		/// <summary>
+		/// “绕黄鱼转”动作类
+		/// </summary>
+		// 某三只绕黄鱼转圈，其他鱼围观
+		// 模块负责人：？
+		// 07.19: 初始版本，没法用
+		// TODO:
+		//  
+
+		class SurroundRandomFishClass {
+			// 状态机
+			private static int state = 0;
+			// 计时器与超时
+			private static long timer = 0;
+			private static long timingLimit;
+			private static int endingDelay;
+
+			// 稳定标记
+			private static int[] eqFlag = new int[11];
+
+			private static xna.Vector3[] targetVector = new xna.Vector3[9];
+			private static float[] targetAngle = new float[9];
+
+			// 围观鱼的位置
+			private const int staticFishX = 2100;
+			private const int staticFishZ = 1000;
+
+			// 运动的鱼与黄鱼的距离，转圈运动速度（增量）
+			private const int motionFishProximity = 400;
+			private const float motionFishAngularDegSpeed = 10;
+
+			// 运动的鱼变量
+			private static float motionFishRelativeAngle = 0;
+			private static int[] motionFishTargetX = new int[3];
+			private static int[] motionFishTargetZ = new int[3];
+
+			// 随机鱼运动状态预测
+			private static xna.Vector3 randomFishPredict;
+
+			private static RoboFish[] fish = new RoboFish[9];
+
+			public static xna.Vector3 predictRandomFishMovement(ref Mission mission, int teamId, xna.Vector3 auxVector, float auxAngle, float vScale = 1f, float aScale = 1f) {
+				xna.Vector3 returnVector = new xna.Vector3();
+				// 比较粗略的估计
+				float velocityPc = mission.TeamsRef[teamId].Fishes[0].VelocityMmPs * mission.CommonPara.MsPerCycle * 1000f * vScale;
+				float initialDir = mission.TeamsRef[teamId].Fishes[0].VelocityDirectionRad;
+				float angularVelocityPc = mission.TeamsRef[teamId].Fishes[0].AngularVelocityRadPs * mission.CommonPara.MsPerCycle * 1000f * aScale;
+				float finalDir = initialDir + angularVelocityPc;
+
+				returnVector.X = mission.TeamsRef[teamId].Fishes[0].PositionMm.X + velocityPc * (float)Math.Cos(initialDir);
+				returnVector.Z = mission.TeamsRef[teamId].Fishes[0].PositionMm.Z + velocityPc * (float)Math.Sin(initialDir);
+
+				returnVector.Y = finalDir; // 记得分离出这个
+
+				return returnVector;
+			}
+
+			public static void surroundRandomFish(ref Mission mission, int teamId, ref Decision[] decisions) {
+				// 仿真周期毫秒数
+				int msPerCycle = mission.CommonPara.MsPerCycle;
+				for (int i = 0; i < 9; i++)
+					fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
+				switch (state) {
+					case 0: {
+							// 初始化
+							// 计时上限设置为2分钟
+							// 07.23测试设置为1分钟
+							timingLimit = (2) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+							// 结尾等待时间设定为5秒
+							endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+
+							#region // 产生围观鱼的目标点
+							// 左上
+							targetVector[0].X = -staticFishX;
+							targetVector[0].Z = staticFishZ;
+							// 左
+							targetVector[1].X = -staticFishX;
+							targetVector[1].Z = 0;
+							// 左下
+							targetVector[2].X = -staticFishX;
+							targetVector[2].Z = -staticFishZ;
+							targetAngle[0] = targetAngle[1] = targetAngle[2] = deg2rad(180);
+
+							// 右上
+							targetVector[3].X = staticFishX;
+							targetVector[3].Z = staticFishZ;
+							// 右
+							targetVector[4].X = staticFishX;
+							targetVector[4].Z = 0;
+							// 右下
+							targetVector[5].X = staticFishX;
+							targetVector[5].Z = -staticFishZ;
+							targetAngle[3] = targetAngle[4] = targetAngle[5] = 0;
+							#endregion
+
+							for (int i = 0; i < 11; i++) {
+								eqFlag[i] = 0;
+								timeForPoseToPose[i] = 0;
+							}
+							state = 1;
+						}
+						break;
+					case 1: {
+							// 产生运动鱼的新坐标
+							// motionFishRelativeAngle += motionFishAngularDegSpeed;
+							float moionFishRelativeRad = deg2rad(motionFishRelativeAngle);
+							// randomFishPredict = predictRandomFishMovement(ref mission, teamId, xna.Vector3.Zero, 0f, 1, 1);
+							randomFishPredict = mission.TeamsRef[teamId].Fishes[0].PolygonVertices[4];
+
+							// 八号鱼目的地设定
+							targetVector[6].X = randomFishPredict.X + motionFishProximity * (float)Math.Cos(moionFishRelativeRad);
+							targetVector[6].Z = randomFishPredict.Z + motionFishProximity * (float)Math.Sin(moionFishRelativeRad);
+							targetAngle[6] = deg2rad(90 + motionFishRelativeAngle);
+							// 九号鱼目的地设定
+							targetVector[7].X = randomFishPredict.X + motionFishProximity * (float)Math.Cos(moionFishRelativeRad + deg2rad(120));
+							targetVector[7].Z = randomFishPredict.Z + motionFishProximity * (float)Math.Sin(moionFishRelativeRad + deg2rad(120));
+							targetAngle[7] = deg2rad(90 + motionFishRelativeAngle + 120);
+							// 十号鱼目的地设定
+							targetVector[8].X = randomFishPredict.X + motionFishProximity * (float)Math.Cos(moionFishRelativeRad - deg2rad(120));
+							targetVector[8].Z = randomFishPredict.Z + motionFishProximity * (float)Math.Sin(moionFishRelativeRad - deg2rad(120));
+							targetAngle[8] = deg2rad(90 + motionFishRelativeAngle - 120);
+
+							state = 2;
+						}
+						break;
+					case 2: {
+							// 运动
+							for (int i = 0; i < 9; i++) {
+								// int j;
+								// if (i - fishIDShift < 0) j = 9 + i - fishIDShift;
+								// else j = i - fishIDShift;
+								int j = i;
+								fish2Point_Fast(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+							}
+
+							if (allEqual(eqFlag, 2, 3, 10)) {
+								for (int i = 0; i < 11; i++) {
+									eqFlag[i] = 0;
+									timeForPoseToPose[i] = 0;
+								}
+								state = 1;
+							}
+							state = 1;
+						}
+						break;
+					default: {
+
+						}
+						break;
+				}
+
+			}
 		}
 		#endregion
 
@@ -560,7 +814,7 @@ namespace URWPGSim2D.Strategy {
                     break;
                 case 2: MovingHeartClass.movingHeart(ref mission, teamId, ref decisions);
                     break;
-                case 3: stage++; // 尚未完成
+                case 3: SurroundRandomFishClass.surroundRandomFish(ref mission, teamId, ref decisions);
                     break;
                 case 4: 
                 default: completeFlag = true;
@@ -572,7 +826,3 @@ namespace URWPGSim2D.Strategy {
         }
     }
 }
-
-
-
-
