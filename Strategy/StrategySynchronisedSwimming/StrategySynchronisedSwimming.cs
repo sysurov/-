@@ -341,8 +341,6 @@ namespace URWPGSim2D.Strategy {
 					timingLimit = (2) * 30 * 1000 / mission.CommonPara.MsPerCycle;
 					// 结尾等待时间设定为5秒
 					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
-
-					return;
 				} else if (state == 1) {
 					// 装载10的第一个状态
 					for (int i = 0; i < 9; i++) {
@@ -384,7 +382,6 @@ namespace URWPGSim2D.Strategy {
 						count--;
 						s_d = float.MaxValue;
 					}
-
 					//暂时弃用的算法v0.1
 					/*for (int i = 0; i < 9; i++)
                     {
@@ -404,12 +401,11 @@ namespace URWPGSim2D.Strategy {
                     }*/
 
 					state = 2;
-					return;
 				} else if (state == 2) {
 					// 行动至10的第一个状态
 
 					for (int i = 0; i < 9; i++) {
-						fish2Point(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+						fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
 					}
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
@@ -427,8 +423,107 @@ namespace URWPGSim2D.Strategy {
 
 						stage++;
 					}
+				} else if (state == 3) {
+					if (timer >= endingDelay) {
+						// 5秒计时结束
+						stage++;
+					}
+				}
 
-					return;
+				timer++;
+				return;
+			}
+
+		}
+		#endregion
+
+		#region Chinese_Ren
+		//汉字造型“人”
+		//陈姝睿
+		class Chinese_REN {
+			private static int state = 0;
+
+			// 计时器与超时
+			private static long timer = 0;
+			private static long timingLimit;
+			private static int endingDelay;
+
+			static xna.Vector3[] targetVector = new xna.Vector3[9];
+			static float[] targetAngle = new float[9];
+			// 稳定标记
+			private static int[] eqFlag = new int[11];
+
+			/*        X     X     258, -120, -480, -834, -1230, 384, 810, 1242, 1716
+        Z     -985, -516, -60, 432, 930, -264, 114, 498, 864
+        angle 130, 130, 130, 130, 130, 40, 40, 40, 40 */
+
+			static int[] targetVectorX1 = { 258, -120, -480, -834, -1230, 384, 810, 1242, 1716 };
+			static int[] targetVectorZ1 = { -985, -516, -60, 432, 930, -264, 114, 498, 864 };
+			static float[] targetAngle1 = { 130, 130, 130, 130, 130, 40, 40, 40, 40 };
+
+			private static float deg2rad(float deg) {
+				if (deg > 180) deg -= 360;
+				return (float)(Math.PI * deg / 180);
+			}
+
+			public static void movingRen(ref Mission mission, int teamId, ref Decision[] decisions) {
+				// 仿真周期毫秒数
+				int msPerCycle = mission.CommonPara.MsPerCycle;
+				RoboFish[] fish = {
+					mission.TeamsRef[teamId].Fishes[1],
+					mission.TeamsRef[teamId].Fishes[2],
+					mission.TeamsRef[teamId].Fishes[3],
+					mission.TeamsRef[teamId].Fishes[4],
+					mission.TeamsRef[teamId].Fishes[5],
+					mission.TeamsRef[teamId].Fishes[6],
+					mission.TeamsRef[teamId].Fishes[7],
+					mission.TeamsRef[teamId].Fishes[8],
+					mission.TeamsRef[teamId].Fishes[9] };
+				// Reserved，需要重编号功能以尽可能减少时间
+				if (state == 0) {
+					// 初始化
+					state = 1;
+					for (int i = 0; i < 11; i++) {
+						eqFlag[i] = 0;
+						timeForPoseToPose[i] = 0;
+					}
+					// 时限1分钟
+					timingLimit = (2) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+					// 结尾等待时间设定为5秒
+					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+				} else if (state == 1) {
+					// 装载10的第一个状态
+
+					for (int i = 0; i < 9; i++) {
+						targetVector[i].X = targetVectorX1[i];
+						targetVector[i].Z = targetVectorZ1[i];
+						targetAngle[i] = deg2rad(targetAngle1[i]);
+						// targetVector[i].Y = 0;
+					}
+
+					state = 2;
+				} else if (state == 2) {
+					// 行动至10的第一个状态
+					for (int i = 0; i < 9; i++) {
+						//StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
+						fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+					}
+					if (allEqual(eqFlag, 2, 3, 10)) {
+						for (int i = 0; i < 11; i++) {
+							eqFlag[i] = 0;
+							timeForPoseToPose[i] = 0;
+						}
+						timer = 0;
+						state = 3;
+					}
+
+					// 总动作时间超时确认，全部停止运动，跳转到下个项目
+					if (timer >= timingLimit) {
+						for (int i = 0; i < 9; i++)
+							stopFish(ref decisions[i], i + 2);
+
+						stage++;
+					}
 				} else if (state == 3) {
 					if (timer >= endingDelay) {
 						// 5秒计时结束
@@ -562,7 +657,7 @@ namespace URWPGSim2D.Strategy {
 							state = 4;
 						} else {
 							// 再转一圈
-							cycleDownCounter -= 1;
+							cycleDownCounter --;
 							state = 3;
 						}
 					}
@@ -580,7 +675,7 @@ namespace URWPGSim2D.Strategy {
 					heartStageFlag = !heartStageFlag;
 					state = 1;
 
-				} else if (state == 4) {
+				} else if (state == 4) { 
 					if (timer >= endingDelay) {
 						// 5秒计时结束
 						stage++;
@@ -758,6 +853,27 @@ namespace URWPGSim2D.Strategy {
 		}
 		#endregion
 
+		#region fireworks
+		/// <summary>
+		///  "烟花"动作类
+		/// </summary>
+		class FireworksClass {
+			// 状态机
+			private static int state = 0;
+			// 计时器与超时
+			private static long timer = 0;
+			private static long timingLimit;
+			private static int endingDelay;
+
+			// 稳定标记
+			private static int[] eqFlag = new int[11];
+
+			private static xna.Vector3[] targetVector = new xna.Vector3[9];
+			private static float[] targetAngle = new float[9];
+		}
+		#endregion
+
+
 		public Decision[] GetDecision(Mission mission, int teamId) {
 			// 决策类当前对象第一次调用GetDecision时Decision数组引用为null
 			if (decisions == null) {// 根据决策类当前对象对应的仿真使命参与队伍仿真机器鱼的数量分配决策数组空间
@@ -830,7 +946,7 @@ namespace URWPGSim2D.Strategy {
 					NumberTenClass.movingTen(ref mission, teamId, ref decisions);
 					break;
 				case 1:
-					stage++; // 尚未完成
+					Chinese_REN.movingRen(ref mission, teamId, ref decisions);
 					break;
 				case 2:
 					MovingHeartClass.movingHeart(ref mission, teamId, ref decisions);
