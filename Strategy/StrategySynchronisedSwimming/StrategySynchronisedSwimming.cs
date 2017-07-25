@@ -32,7 +32,7 @@ namespace URWPGSim2D.Strategy {
 		Decision[] preDecisions = null;
 
 		// 表演阶段标记
-		private static int stage = 2;
+		private static int stage = 3;
 
 		private static int timeflag = 0;
 		private static int[] timeForPoseToPose = new int[11];
@@ -584,17 +584,17 @@ namespace URWPGSim2D.Strategy {
 		}
 		#endregion
 
-		#region surroundRandomFish
+		#region interactWithYellowFish
 		/// <summary>
-		/// “绕黄鱼转”动作类
+		/// “与黄鱼互动”动作类
 		/// </summary>
-		// 某三只绕黄鱼转圈，其他鱼围观
+		// 跟在黄鱼后方做“DNA”形运动
 		// 模块负责人：？
-		// 07.19: 初始版本，没法用
+		// 07.25: 初始版本，只做了一条鱼的，太慢了
 		// TODO:
 		//  
+		class InteractWithYellowFishClass {
 
-		class SurroundRandomFishClass {
 			// 状态机
 			private static int state = 0;
 			// 计时器与超时
@@ -613,38 +613,40 @@ namespace URWPGSim2D.Strategy {
 			private const int staticFishZ = 1000;
 
 			// 运动的鱼与黄鱼的距离，转圈运动速度（增量）
-			private const int motionFishProximity = 400;
-			private const float motionFishAngularDegSpeed = 10;
+			private const int motionFishProximity = 200;
+			private const int motionFishLatency = 400;
+			// private const float motionFishAngularDegSpeed = 10;
 
 			// 运动的鱼变量
 			private static float motionFishRelativeAngle = 0;
 			private static int[] motionFishTargetX = new int[3];
 			private static int[] motionFishTargetZ = new int[3];
 
-			// 随机鱼运动状态预测
-			private static xna.Vector3 randomFishPredict;
-
 			private static RoboFish[] fish = new RoboFish[9];
 
-			public static xna.Vector3 predictRandomFishMovement(ref Mission mission, int teamId, xna.Vector3 auxVector, float auxAngle, float vScale = 1f, float aScale = 1f) {
-				xna.Vector3 returnVector = new xna.Vector3();
-				// 比较粗略的估计
-				float velocityPc = mission.TeamsRef[teamId].Fishes[0].VelocityMmPs * mission.CommonPara.MsPerCycle * 1000f * vScale;
-				float initialDir = mission.TeamsRef[teamId].Fishes[0].VelocityDirectionRad;
-				float angularVelocityPc = mission.TeamsRef[teamId].Fishes[0].AngularVelocityRadPs * mission.CommonPara.MsPerCycle * 1000f * aScale;
-				float finalDir = initialDir + angularVelocityPc;
+			private static float motionFishArcAngle = 0;
+			private static float motionFishArcAngleIncrement;
 
-				returnVector.X = mission.TeamsRef[teamId].Fishes[0].PositionMm.X + velocityPc * (float)Math.Cos(initialDir);
-				returnVector.Z = mission.TeamsRef[teamId].Fishes[0].PositionMm.Z + velocityPc * (float)Math.Sin(initialDir);
+			/*
+			// 黄鱼位置移位寄存器，其中Y保存的是鱼头指向（弧度制）
+			// 假设黄鱼运动自身长度的距离总共需要7s
+			xna.Vector3[] ramdomFishRegister = new xna.Vector3[10];
 
-				returnVector.Y = finalDir; // 记得分离出这个
-
-				return returnVector;
+			private static void shiftRegPush(ref xna.Vector3[] shiftReg, xna.Vector3 newItem) {
+				// shiftReg[0] 是最新的数据
+				for (int i = shiftReg.GetLength(0)-1; i > 0; i--)
+					shiftReg[i] = shiftReg[i - 1];
+				shiftReg[0] = newItem;
+				return;
 			}
+			*/
 
-			public static void surroundRandomFish(ref Mission mission, int teamId, ref Decision[] decisions) {
+			public static void interactWithRandomFish(ref Mission mission, int teamId, ref Decision[] decisions) {
 				// 仿真周期毫秒数
 				int msPerCycle = mission.CommonPara.MsPerCycle;
+				// 设定绕黄鱼的鱼运动的速度
+				motionFishArcAngleIncrement = (float)Math.PI*(7*1000)/(msPerCycle/2); // 每7s转180°，因为两个周期才执行一次运动，对应msPerCycle要除2
+
 				for (int i = 0; i < 9; i++)
 					fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
 				switch (state) {
@@ -666,7 +668,7 @@ namespace URWPGSim2D.Strategy {
 							// 左下
 							targetVector[2].X = -staticFishX;
 							targetVector[2].Z = -staticFishZ;
-							targetAngle[0] = targetAngle[1] = targetAngle[2] = deg2rad(180);
+							targetAngle[0] = targetAngle[1] = targetAngle[2] = deg2rad(175);
 
 							// 右上
 							targetVector[3].X = staticFishX;
@@ -678,6 +680,15 @@ namespace URWPGSim2D.Strategy {
 							targetVector[5].X = staticFishX;
 							targetVector[5].Z = -staticFishZ;
 							targetAngle[3] = targetAngle[4] = targetAngle[5] = 0;
+
+							// 上
+							targetVector[6].X = 0;
+							targetVector[6].Z = -staticFishZ;
+							targetAngle[6] = 0;
+							// 下
+							targetVector[7].X = 0;
+							targetVector[7].Z = staticFishZ;
+							targetAngle[7] = deg2rad(175);
 							#endregion
 
 							for (int i = 0; i < 11; i++) {
@@ -689,36 +700,32 @@ namespace URWPGSim2D.Strategy {
 						break;
 					case 1: {
 							// 产生运动鱼的新坐标
-							// motionFishRelativeAngle += motionFishAngularDegSpeed;
-							float moionFishRelativeRad = deg2rad(motionFishRelativeAngle);
-							// randomFishPredict = predictRandomFishMovement(ref mission, teamId, xna.Vector3.Zero, 0f, 1, 1);
-							randomFishPredict = mission.TeamsRef[teamId].Fishes[0].PolygonVertices[4];
-
-							// 八号鱼目的地设定
-							targetVector[6].X = randomFishPredict.X + motionFishProximity * (float)Math.Cos(moionFishRelativeRad);
-							targetVector[6].Z = randomFishPredict.Z + motionFishProximity * (float)Math.Sin(moionFishRelativeRad);
-							targetAngle[6] = deg2rad(90 + motionFishRelativeAngle);
-							// 九号鱼目的地设定
-							targetVector[7].X = randomFishPredict.X + motionFishProximity * (float)Math.Cos(moionFishRelativeRad + deg2rad(120));
-							targetVector[7].Z = randomFishPredict.Z + motionFishProximity * (float)Math.Sin(moionFishRelativeRad + deg2rad(120));
-							targetAngle[7] = deg2rad(90 + motionFishRelativeAngle + 120);
 							// 十号鱼目的地设定
-							targetVector[8].X = randomFishPredict.X + motionFishProximity * (float)Math.Cos(moionFishRelativeRad - deg2rad(120));
-							targetVector[8].Z = randomFishPredict.Z + motionFishProximity * (float)Math.Sin(moionFishRelativeRad - deg2rad(120));
-							targetAngle[8] = deg2rad(90 + motionFishRelativeAngle - 120);
+							xna.Vector3 randomFishBasePoint = mission.TeamsRef[teamId].Fishes[0].PositionMm;
+							float randomFishBaseDirection = mission.TeamsRef[teamId].Fishes[0].BodyDirectionRad;
+							xna.Vector3 randomFishLatencyPoint = new xna.Vector3();
+							randomFishLatencyPoint.X = (float)(randomFishBasePoint.X - motionFishLatency * Math.Cos(randomFishBaseDirection));
+							randomFishLatencyPoint.Z = (float)(randomFishBasePoint.Z - motionFishLatency * Math.Sin(randomFishBaseDirection));
 
+							xna.Vector3 motionFishVarPoint = new xna.Vector3();
+							float motionFishDistance = (float)(motionFishProximity * Math.Sin(motionFishArcAngle));
+							motionFishVarPoint.X = (float)(motionFishDistance * Math.Sin(randomFishBaseDirection + deg2rad(90)));
+							motionFishVarPoint.Z = (float)(motionFishDistance * Math.Cos(randomFishBaseDirection + deg2rad(90)));
+
+							targetVector[8] = randomFishLatencyPoint + motionFishVarPoint;
+							targetAngle[8] = randomFishBaseDirection;
+
+							motionFishArcAngle += motionFishArcAngleIncrement;
 							state = 2;
 						}
 						break;
 					case 2: {
 							// 运动
-							for (int i = 0; i < 9; i++) {
-								// int j;
-								// if (i - fishIDShift < 0) j = 9 + i - fishIDShift;
-								// else j = i - fishIDShift;
+							for (int i = 0; i < 8; i++) {
 								int j = i;
 								fish2Point_Fast(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
 							}
+							fish2Point_Fast(ref decisions[9], fish[8], targetVector[8], targetAngle[8], 10, ref timeForPoseToPose, eqFlag);
 
 							if (allEqual(eqFlag, 2, 3, 10)) {
 								for (int i = 0; i < 11; i++) {
@@ -737,6 +744,8 @@ namespace URWPGSim2D.Strategy {
 				}
 
 			}
+
+
 		}
 		#endregion
 
@@ -814,7 +823,8 @@ namespace URWPGSim2D.Strategy {
                     break;
                 case 2: MovingHeartClass.movingHeart(ref mission, teamId, ref decisions);
                     break;
-                case 3: SurroundRandomFishClass.surroundRandomFish(ref mission, teamId, ref decisions);
+                case 3: // SurroundRandomFishClass.surroundRandomFish(ref mission, teamId, ref decisions);
+					InteractWithYellowFishClass.interactWithRandomFish(ref mission, teamId, ref decisions);
                     break;
                 case 4: 
                 default: completeFlag = true;
