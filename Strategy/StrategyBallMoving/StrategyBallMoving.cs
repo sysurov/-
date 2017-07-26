@@ -6,109 +6,351 @@ using System.Text;
 using xna = Microsoft.Xna.Framework;
 using URWPGSim2D.Common;
 using URWPGSim2D.StrategyLoader;
+using URWPGSim2D.StrategyHelper;
+using System.IO;
+
 
 namespace URWPGSim2D.Strategy
+
 {
     public class Strategy : MarshalByRefObject, IStrategy
     {
         #region reserved code never be changed or removed
+
         /// <summary>
+
         /// override the InitializeLifetimeService to return null instead of a valid ILease implementation
+
         /// to ensure this type of remote object never dies
+
         /// </summary>
+
         /// <returns>null</returns>
+
         public override object InitializeLifetimeService()
         {
             //return base.InitializeLifetimeService();
             return null; // makes the object live indefinitely
         }
-        #endregion
 
+        #endregion
         /// <summary>
+
         /// 决策类当前对象对应的仿真使命参与队伍的决策数组引用 第一次调用GetDecision时分配空间
+
         /// </summary>
         private Decision[] decisions = null;
-
         /// <summary>
+
         /// 获取队伍名称 在此处设置参赛队伍的名称
+
         /// </summary>
+
         /// <returns>队伍名称字符串</returns>
+
         public string GetTeamName()
         {
-            return "水中搬运 Test Team";
+            return "中东检修队";
         }
 
-        /// <summary>
-        /// 获取当前仿真使命（比赛项目）当前队伍所有仿真机器鱼的决策数据构成的数组
-        /// </summary>
-        /// <param name="mission">服务端当前运行着的仿真使命Mission对象</param>
-        /// <param name="teamId">当前队伍在服务端运行着的仿真使命中所处的编号 
-        /// 用于作为索引访问Mission对象的TeamsRef队伍列表中代表当前队伍的元素</param>
-        /// <returns>当前队伍所有仿真机器鱼的决策数据构成的Decision数组对象</returns>
+        public int times = 0;
+        public float ballR = 58;
+
+        private xna.Vector3 p0; //0号球中转点
+        private xna.Vector3 p4; //4号球中转点
+
+        private int CycleTime = 100;  //仿真周期
+        public int state1 = 0;  //记录鱼的状态
+        public int state2 = 0;
+        StreamWriter log = new StreamWriter("C:\\Users\\Jade\\Desktop\\URWPGSim2D\\Log.txt", true);  //用于debug , true:表示不删除以前的记录；false：表示删除以前记录
+
+        #region 鱼和球相关变量声明
+
+        private xna.Vector3[] ball = new xna.Vector3[6];    //球的坐标
+        private xna.Vector3[] hole = new xna.Vector3[6];  //定义6个地标的中心坐标，记录在hole数组中
+        private void CalHol()
+        {
+            for (int i = 1; i < 4; i++)
+                for (int j = 1; j <= i; j++)
+                {
+                    int l = i * (i - 1) / 2 + j - 1;
+                    hole[l].Y = 0;
+                    hole[l].X = -(i * 3 - 3) * 80;
+                    hole[l].Z = -(i - 1) * 2 * 80 + 4 * (j - 1) * 80;
+                }
+        }
+
+        private RoboFish rFish1;
+        private RoboFish rFish2;
+
+        public struct myFish
+        {
+            public xna.Vector3 head;   //鱼头坐标
+            public xna.Vector3 body;   //鱼体坐标
+            public xna.Vector3 Position;   //刚体中心
+            public float Direction;    //鱼的方向（Rad）
+            public float velocity;     //当前速度
+        }
+
+        myFish my_fish1, my_fish2;
+        #endregion
+
+        public double getDistance(xna.Vector3 temp1, xna.Vector3 temp2)   //点与点的最短距离
+        {
+            return Math.Sqrt(Math.Pow(temp1.X - temp2.X, 2d) + Math.Pow(temp1.Z - temp2.Z, 2d));
+        }
+
+        public float deg2rad(float deg)
+        {
+            if (deg > 180) deg -= 360;
+            return (float)(Math.PI * deg / 180);
+        }
+
+        //鱼2的运动
+        public void do_fish2(Mission mission, int teamId)
+        {
+            CalHol();
+            CycleTime = mission.CommonPara.MsPerCycle;
+
+            rFish2 = mission.TeamsRef[teamId].Fishes[1];
+            my_fish2.head = mission.TeamsRef[teamId].Fishes[1].PolygonVertices[0];
+            my_fish2.body = new xna.Vector3((mission.TeamsRef[teamId].Fishes[1].PolygonVertices[0].X + mission.TeamsRef[teamId].Fishes[1].PolygonVertices[3].X) / 2, 0, (mission.TeamsRef[teamId].Fishes[1].PolygonVertices[0].Z + mission.TeamsRef[teamId].Fishes[1].PolygonVertices[3].Z) / 2);
+            my_fish2.Position = mission.TeamsRef[teamId].Fishes[1].PositionMm;
+            my_fish2.Direction = mission.TeamsRef[teamId].Fishes[1].BodyDirectionRad;
+
+            ball[0] = mission.EnvRef.Balls[0].PositionMm;
+            ball[1] = mission.EnvRef.Balls[1].PositionMm;
+            ball[3] = mission.EnvRef.Balls[3].PositionMm;
+
+            //水中搬运传递给策略的特有参数的一种，为判断某个球是否进相应的洞。 当值为0时，表示未进洞；当值为1时，表示进洞；其余值无效          
+            int b0 = Convert.ToInt32(mission.HtMissionVariables["Ball0InHole"]);
+            int b1 = Convert.ToInt32(mission.HtMissionVariables["Ball1InHole"]);
+            int b3 = Convert.ToInt32(mission.HtMissionVariables["Ball3InHole"]);
+
+
+
+            switch (state2)
+            {
+                case 0://来到画面右上方
+                    //xna.Vector3 temp = new xna.Vector3(1048, 0 ,-556);
+                    xna.Vector3 temp = new xna.Vector3(ball[3].X + (float)1.5 * ballR, 0, ball[3].Z - (float)3 * ballR);
+                    Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(30), 30, 100, CycleTime, ref times);
+                    if (getDistance(temp, my_fish2.body) < 100)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+
+                case 1: //转向球3的右上方
+                    temp = new xna.Vector3(ball[3].X + (float)2.5 * ballR, 0, ball[3].Z - (float)1.5 * ballR);
+                    float angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与球的方向
+                    Helpers.PoseToPose(ref decisions[1], rFish2, temp, angle, 30, 50, CycleTime, ref times);
+                    if (getDistance(temp, my_fish2.body) < 100)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+
+                case 2://将球3向外推动
+                    //temp = new xna.Vector3(ball[3].X - 2 * ballR, 0, ball[3].Z - 3*ballR);
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[3].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[3].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (b3 == 1)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+                case 3://游到球0上方
+                    temp = new xna.Vector3(ball[0].X + (float)0.5 * ballR, 0, ball[0].Z - (float)3 * ballR);
+                    Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(90), 30, 100, CycleTime, ref times);
+                    if (getDistance(temp, my_fish2.body) < 100)
+                    {
+                        state2++;
+                        times = 0;
+                        p0 = new xna.Vector3(ball[0].X - ballR, 0, ball[0].Z + 3 * ballR);
+                    }
+                    break;
+                case 4://推球0到球下方的位置
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(p0 - ball[0])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[0].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[0].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(p0, my_fish2.body) < 100)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+                case 5://将鱼0推入洞
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[0] - ball[0])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[0].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[0].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 12, 150, 7, 5, 5, CycleTime, true);
+                    if (b0 == 1)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+                case 6: //移动到球1的后方
+                    temp = new xna.Vector3(ball[1].X + (float)1.5 * ballR, 0, ball[1].Z + (float)1.5 * ballR);
+                    Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(0), 30, 100, CycleTime, ref times);
+                    if (getDistance(temp, my_fish2.body) < 100)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+                case 7:
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[1] - ball[1])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[1].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[1].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (b1 == 1)
+                    {
+                        state2++;
+                        times = 0;
+                    }
+                    break;
+                case 8:
+                    decisions[1].VCode = 0;
+                    break;
+            }
+        }
+
+        //鱼1的运动
+        public void do_fish1(Mission mission, int teamId)
+        {
+            CalHol();
+            CycleTime = mission.CommonPara.MsPerCycle;
+
+            rFish1 = mission.TeamsRef[teamId].Fishes[0];
+            my_fish1.head = rFish1.PolygonVertices[0];
+            my_fish1.body = new xna.Vector3((rFish1.PolygonVertices[0].X + rFish1.PolygonVertices[4].X) / 2, 0, (rFish1.PolygonVertices[0].Z + rFish1.PolygonVertices[4].Z) / 2);
+            my_fish1.Position = rFish1.PositionMm;
+
+            ball[2] = mission.EnvRef.Balls[2].PositionMm;
+            ball[5] = mission.EnvRef.Balls[5].PositionMm;
+            ball[4] = mission.EnvRef.Balls[4].PositionMm;
+
+            int b2 = Convert.ToInt32(mission.HtMissionVariables["Ball2InHole"]);
+            int b5 = Convert.ToInt32(mission.HtMissionVariables["Ball5InHole"]);
+            int b4 = Convert.ToInt32(mission.HtMissionVariables["Ball4InHole"]);
+
+            switch (state1)
+            {
+
+                case 0://来到画面右下方
+                    xna.Vector3 temp = new xna.Vector3(ball[5].X + (float)1.5 * ballR, 0, ball[5].Z + (float)3 * ballR);
+                    Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(-30), 30, 100, CycleTime, ref times);
+                    if (getDistance(temp, my_fish1.body) < 100)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+
+                case 1: //转向球5的右下方
+                    temp = new xna.Vector3(ball[5].X + (float)2.5 * ballR, 0, ball[5].Z + (float)1.5 * ballR);
+                    float angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[5] - ball[5])); //目标点与球的方向
+                    Helpers.PoseToPose(ref decisions[0], rFish1, temp, angle, 30, 50, CycleTime, ref times);
+                    if (getDistance(temp, my_fish1.body) < 100)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+
+                case 2://将球推进洞
+                    //temp = new xna.Vector3(ball[3].X - 2 * ballR, 0, ball[3].Z - 3*ballR);
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[5] - ball[5])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[5].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[5].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (b5 == 1)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+
+                case 3://游到球4下方
+                    temp = new xna.Vector3(ball[4].X + (float)0.5 * ballR, 0, ball[4].Z + (float)3 * ballR);
+                    Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(270), 30, 100, CycleTime, ref times);
+                    if (getDistance(temp, my_fish1.body) < 100)
+                    {
+                        p4 = new xna.Vector3(ball[4].X - ballR, 0, ball[4].Z - 3 * ballR);
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+                case 4://推鱼到鱼上方的位置
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(p4 - ball[4])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[4].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[4].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(p4, my_fish1.body) < 100)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+                case 5: //将球4推入洞
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[4] - ball[4])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[4].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[4].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (b4 == 1)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+                case 6: //移动到球2的后方
+                    temp = new xna.Vector3(ball[2].X + (float)1.5 * ballR, 0, ball[2].Z + (float)1.5 * ballR);
+                    Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(0), 30, 100, CycleTime, ref times);
+                    if (getDistance(temp, my_fish1.body) < 100)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+                case 7:
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[2] - ball[2])); //目标点与鱼的方向
+                    temp = new xna.Vector3(ball[2].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[2].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    if (b2 == 1)
+                    {
+                        state1++;
+                        times = 0;
+                    }
+                    break;
+                case 8:
+                    decisions[0].VCode = 0;
+                    break;
+
+            }
+        }
+
         public Decision[] GetDecision(Mission mission, int teamId)
+
         {
             // 决策类当前对象第一次调用GetDecision时Decision数组引用为null
             if (decisions == null)
-            {// 根据决策类当前对象对应的仿真使命参与队伍仿真机器鱼的数量分配决策数组空间
+            {
+                // 根据决策类当前对象对应的仿真使命参与队伍仿真机器鱼的数量分配决策数组空间
                 decisions = new Decision[mission.CommonPara.FishCntPerTeam];
             }
 
-            #region 决策计算过程 需要各参赛队伍实现的部分
-            #region 策略编写帮助信息
-            //====================我是华丽的分割线====================//
-            //======================策略编写指南======================//
-            //1.策略编写工作直接目标是给当前队伍决策数组decisions各元素填充决策值
-            //2.决策数据类型包括两个int成员，VCode为速度档位值，TCode为转弯档位值
-            //3.VCode取值范围0-14共15个整数值，每个整数对应一个速度值，速度值整体但非严格递增
-            //有个别档位值对应的速度值低于比它小的档位值对应的速度值，速度值数据来源于实验
-            //4.TCode取值范围0-14共15个整数值，每个整数对应一个角速度值
-            //整数7对应直游，角速度值为0，整数6-0，8-14分别对应左转和右转，偏离7越远，角度速度值越大
-            //5.任意两个速度/转弯档位之间切换，都需要若干个仿真周期，才能达到稳态速度/角速度值
-            //目前运动学计算过程决定稳态速度/角速度值接近但小于目标档位对应的速度/角速度值
-            //6.决策类Strategy的实例在加载完毕后一直存在于内存中，可以自定义私有成员变量保存必要信息
-            //但需要注意的是，保存的信息在中途更换策略时将会丢失
-            //====================我是华丽的分割线====================//
-            //=======策略中可以使用的比赛环境信息和过程信息说明=======//
-            //场地坐标系: 以毫米为单位，矩形场地中心为原点，向右为正X，向下为正Z
-            //            负X轴顺时针转回负X轴角度范围为(-PI,PI)的坐标系，也称为世界坐标系
-            //mission.CommonPara: 当前仿真使命公共参数
-            //mission.CommonPara.FishCntPerTeam: 每支队伍仿真机器鱼数量
-            //mission.CommonPara.MsPerCycle: 仿真周期毫秒数
-            //mission.CommonPara.RemainingCycles: 当前剩余仿真周期数
-            //mission.CommonPara.TeamCount: 当前仿真使命参与队伍数量
-            //mission.CommonPara.TotalSeconds: 当前仿真使命运行时间秒数
-            //mission.EnvRef.Balls: 
-            //当前仿真使命涉及到的仿真水球列表，列表元素的成员意义参见URWPGSim2D.Common.Ball类定义中的注释
-            //mission.EnvRef.FieldInfo: 
-            //当前仿真使命涉及到的仿真场地，各成员意义参见URWPGSim2D.Common.Field类定义中的注释
-            //mission.EnvRef.ObstaclesRect: 
-            //当前仿真使命涉及到的方形障碍物列表，列表元素的成员意义参见URWPGSim2D.Common.RectangularObstacle类定义中的注释
-            //mission.EnvRef.ObstaclesRound:
-            //当前仿真使命涉及到的圆形障碍物列表，列表元素的成员意义参见URWPGSim2D.Common.RoundedObstacle类定义中的注释
-            //mission.TeamsRef[teamId]:
-            //决策类当前对象对应的仿真使命参与队伍（当前队伍）
-            //mission.TeamsRef[teamId].Para:
-            //当前队伍公共参数，各成员意义参见URWPGSim2D.Common.TeamCommonPara类定义中的注释
-            //mission.TeamsRef[teamId].Fishes:
-            //当前队伍仿真机器鱼列表，列表元素的成员意义参见URWPGSim2D.Common.RoboFish类定义中的注释
-            //mission.TeamsRef[teamId].Fishes[i].PositionMm和PolygonVertices[0],BodyDirectionRad,VelocityMmPs,
-            //                                   AngularVelocityRadPs,Tactic:
-            //当前队伍第i条仿真机器鱼鱼体矩形中心和鱼头顶点在场地坐标系中的位置（用到X坐标和Z坐标），鱼体方向，速度值，
-            //                                   角速度值，决策值
-            //====================我是华丽的分割线====================//
-            //========================典型循环========================//
-            //for (int i = 0; i < mission.CommonPara.FishCntPerTeam; i++)
-            //{
-            //  decisions[i].VCode = 0; // 静止
-            //  decisions[i].TCode = 7; // 直游
-            //}
-            //====================我是华丽的分割线====================//
-            #endregion
-            //请从这里开始编写代码
-
-            #endregion
+            mission.CommonPara.MsPerCycle = 100;
+            ballR = mission.EnvRef.Balls[0].RadiusMm;
+            //log.WriteLine(mission.CommonPara.MsPerCycle);
+            // log.WriteLine(ballR);
+            //log.Close();
+            do_fish2(mission, teamId);
+            do_fish1(mission, teamId);
 
             return decisions;
         }
     }
 }
+
+
