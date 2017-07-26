@@ -32,7 +32,7 @@ namespace URWPGSim2D.Strategy {
 		Decision[] preDecisions = null;
 
 		// 表演阶段标记
-		private static int stage = 3;
+		private static int stage = 2;
 
 		private static int[] timeForPoseToPose = new int[11];
 		private static bool completeFlag = false;
@@ -350,6 +350,8 @@ namespace URWPGSim2D.Strategy {
 						targetVector[i].Y = 0;
 					}
 					//float distance = float.MaxValue;
+
+					// 局部最优的重编号算法
 					int p_d = -1; //目标点的编号
 					int p_n = -1; //鱼的编号
 					float s_d = float.MaxValue; //最小的距离
@@ -406,7 +408,7 @@ namespace URWPGSim2D.Strategy {
 					// 行动至10的第一个状态
 
 					for (int i = 0; i < 9; i++) {
-						fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+						fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
 					}
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
@@ -500,18 +502,25 @@ namespace URWPGSim2D.Strategy {
 					// 结尾等待时间设定为5秒
 					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
 
+				} else if (state == 1) {
+
+					for (int i = 0; i < 9; i++) {
+						targetVector[i].X = targetVectorX1[i];
+						targetVector[i].Z = targetVectorZ1[i];
+						targetAngle[i] = deg2rad(targetAngle1[i]);
+						// targetVector[i].Y = 0;
+					}
+
+					// 局部最优的重编号算法
 					int p_d = -1; //目标点的编号
 					int p_n = -1; //鱼的编号
 					float s_d = float.MaxValue; //最小的距离
-					for (int i = 0; i < 9; i++) {
-						for (int j = 0; j < 9; j++) {
+					for (int i = 0; i < 9; i++)
+						for (int j = 0; j < 9; j++)
 							distance[i, j] = getVectorDistance(targetVector[j], fish[i].PositionMm);
-						}
-					}
 
 					int count = 9;
 					while (count > 0) {
-
 						for (int i = 0; i < 9; i++) {
 							//如果这条鱼已经有目标点
 							if (FishUse[i])
@@ -534,23 +543,13 @@ namespace URWPGSim2D.Strategy {
 						s_d = float.MaxValue;
 					}
 
-				} else if (state == 1) {
-					// 装载10的第一个状态
-
-					for (int i = 0; i < 9; i++) {
-						targetVector[i].X = targetVectorX1[i];
-						targetVector[i].Z = targetVectorZ1[i];
-						targetAngle[i] = deg2rad(targetAngle1[i]);
-						// targetVector[i].Y = 0;
-					}
-
 					state = 2;
 				} else if (state == 2) {
 					// 行动至10的第一个状态
 					for (int i = 0; i < 9; i++) {
 							//StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
 							// fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
-							fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+							fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
 						}
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
@@ -625,6 +624,10 @@ namespace URWPGSim2D.Strategy {
 
 			private static RoboFish[] fish = new RoboFish[9];
 
+			private static int[] FishDes = new int[9];  //鱼的目标点
+
+			private static bool firstRun = true;
+
 			// 相对编号偏移量，转圈用
 			private static int fishIDShift = 0;
 
@@ -641,10 +644,11 @@ namespace URWPGSim2D.Strategy {
 
 				// 仿真周期毫秒数
 				int msPerCycle = mission.CommonPara.MsPerCycle;
+				float[,] distance = new float[9, 9];
 
 				for (int i = 0; i < 9; i++)
 					fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
-				// Reserved，需要重编号功能以尽可能减少时间
+
 				if (state == 0) {
 					// 初始化
 					// 计时上限设置为1.5分钟
@@ -676,20 +680,69 @@ namespace URWPGSim2D.Strategy {
 							targetVector[i].Y = 0;
 						}
 					}
+
+					// 仅在第一次寻找局部最优
+					if (firstRun) {
+						// 局部最优的重编号算法
+						bool[] DesUse = { false, false, false, false, false, false, false, false, false };
+						bool[] FishUse = { false, false, false, false, false, false, false, false, false };
+						int p_d = -1; //目标点的编号
+						int p_n = -1; //鱼的编号
+						float s_d = float.MaxValue; //最小的距离
+						for (int i = 0; i < 9; i++)
+							for (int j = 0; j < 9; j++)
+								distance[i, j] = getVectorDistance(targetVector[j], fish[i].PositionMm);
+				
+						int count = 9;
+						while (count > 0) {
+							for (int i = 0; i < 9; i++) {
+								//如果这条鱼已经有目标点
+								if (FishUse[i])
+									continue;
+								for (int j = 0; j < 9; j++) {
+									//如果这个目标点已经有鱼
+									if (DesUse[j])
+										continue;
+									if (distance[i, j] < s_d) {
+										s_d = distance[i, j];
+										p_n = i;
+										p_d = j;
+									}
+								}
+							}
+							DesUse[p_d] = true;
+							FishUse[p_n] = true;
+							FishDes[p_n] = p_d;
+							count--;
+							s_d = float.MaxValue;
+						}
+						firstRun = false;
+					}
+					
+					/*
+					for (int i = 0; i < 9; i++)
+						FishDes[i] = i;
+					*/
+
 					state = 2;
 
 				} else if (state == 2) {
 					// 行动至心的第一个状态
 					for (int i = 0; i < 9; i++) {
 						int j;
-						if (i - fishIDShift < 0) j = 9 + i - fishIDShift;
-						else j = i - fishIDShift;
-						if (fishIDShift == 0)
-							// 初始归位
-							fish2Point_Fast(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+
+						if (FishDes[i] + fishIDShift >= 9)
+							j = (FishDes[i] + fishIDShift) - 9;
 						else
-							fish2Point_Forward(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag, 300, deg2rad(30), deg2rad(180), 200);
+							j = FishDes[i] + fishIDShift;
+
+						if ((fishIDShift == 0) && heartStageFlag)
+							// 初始归位
+							fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[j], targetAngle[j], i + 2, ref timeForPoseToPose, eqFlag);
+						else
+							fish2Point_Forward(ref decisions[i + 1], fish[i], targetVector[j], targetAngle[j], i + 2, ref timeForPoseToPose, eqFlag, 300, deg2rad(20), deg2rad(20), 200);
 					}
+
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
 							eqFlag[i] = 0;
