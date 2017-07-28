@@ -62,7 +62,9 @@ namespace URWPGSim2D.Strategy
         private int CycleTime = 100;  //仿真周期
         public int state1 = 0;  //记录鱼的状态
         public int state2 = 0;
-        StreamWriter log = new StreamWriter("C:\\Users\\Jade\\Desktop\\URWPGSim2D\\Log.txt", true);  //用于debug , true:表示不删除以前的记录；false：表示删除以前记录
+        //StreamWriter log = new StreamWriter("C:\\Users\\Jade\\Desktop\\URWPGSim2D\\Log.txt", true);  
+
+        public bool[] inHole = { false, false, false, false, false, false };
 
         #region 鱼和球相关变量声明
 
@@ -82,6 +84,9 @@ namespace URWPGSim2D.Strategy
 
         private RoboFish rFish1;
         private RoboFish rFish2;
+
+        private static int timeControl1 = 0;
+        private static int timeControl2 = 0;
 
         public struct myFish
         {
@@ -121,8 +126,13 @@ namespace URWPGSim2D.Strategy
             ball[0] = mission.EnvRef.Balls[0].PositionMm;
             ball[1] = mission.EnvRef.Balls[1].PositionMm;
             ball[3] = mission.EnvRef.Balls[3].PositionMm;
+            ball[2] = mission.EnvRef.Balls[2].PositionMm;
+            ball[5] = mission.EnvRef.Balls[5].PositionMm;
+            ball[4] = mission.EnvRef.Balls[4].PositionMm;
 
-            //水中搬运传递给策略的特有参数的一种，为判断某个球是否进相应的洞。 当值为0时，表示未进洞；当值为1时，表示进洞；其余值无效          
+            int b2 = Convert.ToInt32(mission.HtMissionVariables["Ball2InHole"]);
+            int b5 = Convert.ToInt32(mission.HtMissionVariables["Ball5InHole"]);
+            int b4 = Convert.ToInt32(mission.HtMissionVariables["Ball4InHole"]);
             int b0 = Convert.ToInt32(mission.HtMissionVariables["Ball0InHole"]);
             int b1 = Convert.ToInt32(mission.HtMissionVariables["Ball1InHole"]);
             int b3 = Convert.ToInt32(mission.HtMissionVariables["Ball3InHole"]);
@@ -133,7 +143,7 @@ namespace URWPGSim2D.Strategy
             {
                 case 0://来到画面右上方
                     //xna.Vector3 temp = new xna.Vector3(1048, 0 ,-556);
-                    xna.Vector3 temp = new xna.Vector3(ball[3].X + (float)1.5 * ballR, 0, ball[3].Z - (float)3 * ballR);
+                    xna.Vector3 temp = new xna.Vector3(ball[3].X + (float)2 * ballR, 0, ball[3].Z - (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(30), 30, 100, CycleTime, ref times);
                     if (getDistance(temp, my_fish2.body) < 100)
                     {
@@ -143,7 +153,7 @@ namespace URWPGSim2D.Strategy
                     break;
 
                 case 1: //转向球3的右上方
-                    temp = new xna.Vector3(ball[3].X + (float)2.5 * ballR, 0, ball[3].Z - (float)1.5 * ballR);
+                    temp = new xna.Vector3(ball[3].X + (float)1.5 * ballR, 0, ball[3].Z - (float)1.5 * ballR);
                     float angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与球的方向
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, angle, 30, 50, CycleTime, ref times);
                     if (getDistance(temp, my_fish2.body) < 100)
@@ -155,17 +165,29 @@ namespace URWPGSim2D.Strategy
 
                 case 2://将球3向外推动
                     //temp = new xna.Vector3(ball[3].X - 2 * ballR, 0, ball[3].Z - 3*ballR);
-                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与鱼的方向
+                    angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与球的方向
                     temp = new xna.Vector3(ball[3].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[3].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    timeControl2++;
                     if (b3 == 1)
                     {
+                        state2++;
+                        times = 0;
+                        inHole[3] = true;
+                        timeControl2 = 0;
+                        if (inHole[0])
+                            state2 = 8;
+                    }
+
+                    if (timeControl2 > 1000)
+                    {
+                        timeControl2 = 0;
                         state2++;
                         times = 0;
                     }
                     break;
                 case 3://游到球0上方
-                    temp = new xna.Vector3(ball[0].X + (float)0.5 * ballR, 0, ball[0].Z - (float)3 * ballR);
+                    temp = new xna.Vector3(ball[0].X - (float)1 * ballR, 0, ball[0].Z - (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(90), 30, 100, CycleTime, ref times);
                     if (getDistance(temp, my_fish2.body) < 100)
                     {
@@ -177,7 +199,7 @@ namespace URWPGSim2D.Strategy
                 case 4://推球0到球下方的位置
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(p0 - ball[0])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[0].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[0].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     if (getDistance(p0, my_fish2.body) < 100)
                     {
                         state2++;
@@ -187,9 +209,21 @@ namespace URWPGSim2D.Strategy
                 case 5://将鱼0推入洞
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[0] - ball[0])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[0].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[0].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 12, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    timeControl2++;
                     if (b0 == 1)
                     {
+                        state2++;
+                        times = 0;
+                        inHole[0] = true;
+                        timeControl2 = 0;
+                        if (inHole[1])
+                            state2 = 8;
+                    }
+
+                    if (timeControl2 > 1000)
+                    {
+                        timeControl2 = 0;
                         state2++;
                         times = 0;
                     }
@@ -203,18 +237,38 @@ namespace URWPGSim2D.Strategy
                         times = 0;
                     }
                     break;
+
                 case 7:
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[1] - ball[1])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[1].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[1].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    timeControl2++;
                     if (b1 == 1)
                     {
                         state2++;
                         times = 0;
+                        inHole[1] = true;
+                        timeControl2 = 0;
+                    }
+
+                    if (timeControl2 > 1000)
+                    {
+                        state2++;
+                        times = 0;
+                        timeControl2 = 0;
                     }
                     break;
+
                 case 8:
+                    if (!inHole[3])
+                        state2 = 0;
+                    if (!inHole[0])
+                        state2 = 3;
+                    if (!inHole[1])
+                        state2 = 6;
+
                     decisions[1].VCode = 0;
+                    decisions[1].TCode = 0;
                     break;
             }
         }
@@ -229,7 +283,11 @@ namespace URWPGSim2D.Strategy
             my_fish1.head = rFish1.PolygonVertices[0];
             my_fish1.body = new xna.Vector3((rFish1.PolygonVertices[0].X + rFish1.PolygonVertices[4].X) / 2, 0, (rFish1.PolygonVertices[0].Z + rFish1.PolygonVertices[4].Z) / 2);
             my_fish1.Position = rFish1.PositionMm;
+            my_fish1.Direction = rFish1.BodyDirectionRad;
 
+            ball[0] = mission.EnvRef.Balls[0].PositionMm;
+            ball[1] = mission.EnvRef.Balls[1].PositionMm;
+            ball[3] = mission.EnvRef.Balls[3].PositionMm;
             ball[2] = mission.EnvRef.Balls[2].PositionMm;
             ball[5] = mission.EnvRef.Balls[5].PositionMm;
             ball[4] = mission.EnvRef.Balls[4].PositionMm;
@@ -237,12 +295,16 @@ namespace URWPGSim2D.Strategy
             int b2 = Convert.ToInt32(mission.HtMissionVariables["Ball2InHole"]);
             int b5 = Convert.ToInt32(mission.HtMissionVariables["Ball5InHole"]);
             int b4 = Convert.ToInt32(mission.HtMissionVariables["Ball4InHole"]);
+            int b0 = Convert.ToInt32(mission.HtMissionVariables["Ball0InHole"]);
+            int b1 = Convert.ToInt32(mission.HtMissionVariables["Ball1InHole"]);
+            int b3 = Convert.ToInt32(mission.HtMissionVariables["Ball3InHole"]);
+
 
             switch (state1)
             {
 
                 case 0://来到画面右下方
-                    xna.Vector3 temp = new xna.Vector3(ball[5].X + (float)1.5 * ballR, 0, ball[5].Z + (float)3 * ballR);
+                    xna.Vector3 temp = new xna.Vector3(ball[5].X + (float)2 * ballR, 0, ball[5].Z + (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(-30), 30, 100, CycleTime, ref times);
                     if (getDistance(temp, my_fish1.body) < 100)
                     {
@@ -252,7 +314,7 @@ namespace URWPGSim2D.Strategy
                     break;
 
                 case 1: //转向球5的右下方
-                    temp = new xna.Vector3(ball[5].X + (float)2.5 * ballR, 0, ball[5].Z + (float)1.5 * ballR);
+                    temp = new xna.Vector3(ball[5].X + (float)1.5 * ballR, 0, ball[5].Z + (float)1.5 * ballR);
                     float angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[5] - ball[5])); //目标点与球的方向
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, angle, 30, 50, CycleTime, ref times);
                     if (getDistance(temp, my_fish1.body) < 100)
@@ -263,14 +325,26 @@ namespace URWPGSim2D.Strategy
                     break;
 
                 case 2://将球推进洞
-                    //temp = new xna.Vector3(ball[3].X - 2 * ballR, 0, ball[3].Z - 3*ballR);
+
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[5] - ball[5])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[5].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[5].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    timeControl1++;
                     if (b5 == 1)
                     {
                         state1++;
                         times = 0;
+                        inHole[5] = true;
+                        timeControl1 = 0;
+                        if (inHole[4])
+                            state1 = 8;
+                    }
+
+                    if (timeControl1 > 1000)
+                    {
+                        state1++;
+                        times = 0;
+                        timeControl1 = 0;
                     }
                     break;
 
@@ -287,7 +361,7 @@ namespace URWPGSim2D.Strategy
                 case 4://推鱼到鱼上方的位置
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(p4 - ball[4])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[4].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[4].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     if (getDistance(p4, my_fish1.body) < 100)
                     {
                         state1++;
@@ -297,11 +371,22 @@ namespace URWPGSim2D.Strategy
                 case 5: //将球4推入洞
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[4] - ball[4])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[4].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[4].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    timeControl1++;
                     if (b4 == 1)
                     {
                         state1++;
                         times = 0;
+                        inHole[4] = true;
+                        timeControl1 = 0;
+                        if (inHole[2])
+                            state1 = 8;
+                    }
+                    if (timeControl1 > 1000)
+                    {
+                        state1++;
+                        times = 0;
+                        timeControl1 = 0;
                     }
                     break;
                 case 6: //移动到球2的后方
@@ -316,15 +401,33 @@ namespace URWPGSim2D.Strategy
                 case 7:
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[2] - ball[2])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[2].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[2].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 8, 10, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    timeControl1++;
                     if (b2 == 1)
                     {
                         state1++;
                         times = 0;
+                        inHole[2] = true;
+                        timeControl1 = 0;
+                    }
+
+                    if (timeControl1 > 1000)
+                    {
+                        state1++;
+                        times = 0;
+                        timeControl1 = 0;
                     }
                     break;
                 case 8:
+                    if (!inHole[5])
+                        state1 = 0;
+                    if (!inHole[4])
+                        state1 = 3;
+                    if (!inHole[2])
+                        state1 = 6;
+
                     decisions[0].VCode = 0;
+                    decisions[0].TCode = 0;
                     break;
 
             }
@@ -352,5 +455,4 @@ namespace URWPGSim2D.Strategy
         }
     }
 }
-
 
