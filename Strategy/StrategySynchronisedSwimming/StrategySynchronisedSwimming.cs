@@ -32,7 +32,7 @@ namespace URWPGSim2D.Strategy {
 		Decision[] preDecisions = null;
 
 		// 表演阶段标记
-		private static int stage = 2;
+		private static int stage = 0;
 
 		private static int[] timeForPoseToPose = new int[11];
 		private static bool completeFlag = false;
@@ -42,10 +42,12 @@ namespace URWPGSim2D.Strategy {
 		/// </summary>
 		/// <returns>队伍名称字符串</returns>
 		public string GetTeamName() {
-			return "SYSU East Repairers";
+			return "中大检修队 v1.2";
 		}
 
-		public static int isDirectionRight(float a, float b) {
+		public static int isDirectionRight(float targetDir, float dir) {
+			float range = 0.3f;
+			/*
 			if (a > Math.PI)
 				a -= (float)(2 * Math.PI);
 			if (a < -Math.PI)
@@ -62,6 +64,23 @@ namespace URWPGSim2D.Strategy {
 				return -1;
 			else
 				return 0;
+		}
+		*/
+
+		// public static int isDirApprox(float targetDir, float dir, float range) {
+			float c = targetDir - dir;
+			if (c > Math.PI)
+				c -= (float)(2 * Math.PI);
+			if (c < -Math.PI)
+				c += (float)(2 * Math.PI);
+
+			if (c > range)
+				return 1;
+			if (c < -range)
+				return -1;
+			else
+				return 0;
+
 		}
 
 		public static bool allEqual(int[] group, int value, int start, int end) {
@@ -410,6 +429,7 @@ namespace URWPGSim2D.Strategy {
 					for (int i = 0; i < 9; i++) {
 						fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
 					}
+
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
 							eqFlag[i] = 0;
@@ -440,6 +460,188 @@ namespace URWPGSim2D.Strategy {
 		}
 		#endregion
 
+
+		#region ChinesePing
+		class ChinesePingClass {
+			private static int state = 0;
+			// 计时器与超时控制
+			private static long timer = 0;
+			private static long timingLimit;
+			private static int endingDelay;
+
+			// 运动控制
+			private static xna.Vector3[] targetVector = new xna.Vector3[9];
+			private static float[] targetAngle = new float[9];
+			private static int[] fishStageRegister = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+			private static int[] eqFlag = new int[11];
+
+			// 编号重分配用
+			private static bool[] DesUse = { false, false, false, false, false, false, false, false, false };
+			private static bool[] FishUse = { false, false, false, false, false, false, false, false, false };
+			private static int[] FishDes = new int[9];  //鱼的目标点
+
+			// “平”之第一阶段，两横入位，其他鱼准备好
+			static int[] targetVectorX1 = { -1650, 1650, -300, 300, -600, 600, 0, -50, 50 };
+			static int[] targetVectorZ1 = { -350, -350, -600, -600, 0, 0, -1000, 400, 864 };
+			static float[] targetAngle1 = { 0, 170, 0, 170, 0, 170, 90, -90, -90 };
+			// 进入
+			static int[] targetVectorX2 = { -280, 280, -300, 300, -600, 600, 0, 0, 0 };
+			static int[] targetVectorZ2 = { -180, -180, -600, -600, 0, 0, -350, 50, 600 };
+			static float[] targetAngle2 = { 50, 130, 0, 170, 0, 170, 90, -90, -90 };
+
+			/*
+			static int[] targetVectorXF0 = { 0, 0 };
+			static int[] targetVectorZF0 = { 0, 0 };
+			static int[] targetAngleF0 = { 0,  }
+			*/
+			public static void eval(ref Mission mission, int teamId, ref Decision[] decisions) {
+				// 仿真周期毫秒数
+				int msPerCycle = mission.CommonPara.MsPerCycle;
+
+				RoboFish[] fish = {
+					mission.TeamsRef[teamId].Fishes[1],
+					mission.TeamsRef[teamId].Fishes[2],
+					mission.TeamsRef[teamId].Fishes[3],
+					mission.TeamsRef[teamId].Fishes[4],
+					mission.TeamsRef[teamId].Fishes[5],
+					mission.TeamsRef[teamId].Fishes[6],
+					mission.TeamsRef[teamId].Fishes[7],
+					mission.TeamsRef[teamId].Fishes[8],
+					mission.TeamsRef[teamId].Fishes[9] };
+
+				float[,] distance = new float[9, 9];
+
+				if (state == 0) {
+					// 初始化
+					state = 1;
+					for (int i = 0; i < 11; i++) {
+						eqFlag[i] = 0;
+						timeForPoseToPose[i] = 0;
+					}
+					// 时限1分钟
+					timingLimit = (20) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+					// 结尾等待时间设定为5秒
+					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+
+					state = 1;
+				} else if (state == 1) {
+					// 装载第一阶段数据并进行路径优化
+					for (int i = 0; i < 9; i++) {
+						targetVector[i].X = targetVectorX1[i];
+						targetVector[i].Z = targetVectorZ1[i];
+						targetAngle[i] = deg2rad(targetAngle1[i]);
+						// targetVector[i].Y = 0;
+					}
+
+					// 局部最优的重编号算法
+					int p_d = -1; //目标点的编号
+					int p_n = -1; //鱼的编号
+					float s_d = float.MaxValue; //最小的距离
+					for (int i = 0; i < 9; i++)
+						for (int j = 0; j < 9; j++)
+							distance[i, j] = getVectorDistance(targetVector[j], fish[i].PositionMm);
+
+					int count = 9;
+					while (count > 0) {
+						for (int i = 0; i < 9; i++) {
+							//如果这条鱼已经有目标点
+							if (FishUse[i])
+								continue;
+							for (int j = 0; j < 9; j++) {
+								//如果这个目标点已经有鱼
+								if (DesUse[j])
+									continue;
+								if (distance[i, j] < s_d) {
+									s_d = distance[i, j];
+									p_n = i;
+									p_d = j;
+								}
+							}
+						}
+						DesUse[p_d] = true;
+						FishUse[p_n] = true;
+						FishDes[p_n] = p_d;
+						count--;
+						s_d = float.MaxValue;
+					}
+
+
+					state = 2;
+
+				} else if (state == 2) {
+					// 行动
+					for (int i = 0; i < 9; i++) {
+						//StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
+						// fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref tPoseToPose, eqFlag);
+						fish2Point(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
+					}
+
+					if (allEqual(eqFlag, 2, 3, 10)) {
+						for (int i = 0; i < 11; i++) {
+							eqFlag[i] = 0;
+							timeForPoseToPose[i] = 0;
+						}
+						state = 4;
+					}
+
+					// 总动作时间超时确认，全部停止运动，跳转到下个项目
+					if (timer >= timingLimit) {
+						for (int i = 0; i < 9; i++)
+							stopFish(ref decisions[i], i + 2);
+
+						stage++;
+					}
+
+				} else if (state == 4) {
+					// 装载第二阶段数据
+					for (int i = 0; i < 9; i++) {
+						targetVector[i].X = targetVectorX2[i];
+						targetVector[i].Z = targetVectorZ2[i];
+						targetAngle[i] = deg2rad(targetAngle2[i]);
+						// targetVector[i].Y = 0;
+					}
+
+					state = 5;
+				} else if (state == 5) {
+					// 行动
+					for (int i = 0; i < 9; i++) {
+						//StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
+						// fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref tPoseToPose, eqFlag);
+						fish2Point(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
+					}
+					if (allEqual(eqFlag, 2, 3, 10)) {
+						for (int i = 0; i < 11; i++) {
+							eqFlag[i] = 0;
+							timeForPoseToPose[i] = 0;
+						}
+						timer = 0;
+						state = 6;
+					}
+
+					// 总动作时间超时确认，全部停止运动，跳转到下个项目
+					if (timer >= timingLimit) {
+						for (int i = 0; i < 9; i++)
+							stopFish(ref decisions[i], i + 2);
+
+						stage++;
+					}
+				} else if (state == 6) {
+					if (timer >= endingDelay) {
+						// 5秒计时结束
+						stage++;
+					}
+				}
+
+				timer++;
+				return;
+
+			}
+
+		}
+		#endregion
+
+
 		#region Chinese_Ren
 		//汉字造型“人”
 		//陈姝睿
@@ -459,11 +661,6 @@ namespace URWPGSim2D.Strategy {
 			private static bool[] DesUse = { false, false, false, false, false, false, false, false, false };
 			private static bool[] FishUse = { false, false, false, false, false, false, false, false, false };
 			private static int[] FishDes = new int[9];  //鱼的目标点
-
-
-			/*        X     X     258, -120, -480, -834, -1230, 384, 810, 1242, 1716
-        Z     -985, -516, -60, 432, 930, -264, 114, 498, 864
-        angle 130, 130, 130, 130, 130, 40, 40, 40, 40 */
 
 			static int[] targetVectorX1 = { 258, -120, -480, -834, -1230, 384, 810, 1242, 1716 };
 			static int[] targetVectorZ1 = { -985, -516, -60, 432, 930, -264, 114, 498, 864 };
@@ -489,7 +686,7 @@ namespace URWPGSim2D.Strategy {
 					mission.TeamsRef[teamId].Fishes[9] };
 
 				float[,] distance = new float[9, 9];
-				// Reserved，需要重编号功能以尽可能减少时间
+
 				if (state == 0) {
 					// 初始化
 					state = 1;
@@ -1055,7 +1252,6 @@ namespace URWPGSim2D.Strategy {
 
 			}
 
-
 		}
 		#endregion
 
@@ -1152,7 +1348,7 @@ namespace URWPGSim2D.Strategy {
 					NumberTenClass.movingTen(ref mission, teamId, ref decisions);
 					break;
 				case 1:
-					Chinese_REN.movingRen(ref mission, teamId, ref decisions);
+					ChinesePingClass.eval(ref mission, teamId, ref decisions);
 					break;
 				case 2:
 					MovingHeartClass.movingHeart(ref mission, teamId, ref decisions);
