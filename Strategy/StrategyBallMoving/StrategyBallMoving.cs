@@ -329,7 +329,11 @@ namespace URWPGSim2D.Strategy
 
 
                 case 6: //移动到球1的后方
+<<<<<<< HEAD
                     temp = new xna.Vector3(ball[1].X + (float)1.5 * ballR, 0, ball[1].Z - (float)1.5 * ballR);
+=======
+                    temp = new xna.Vector3(ball[1].X + (float)2.5 * ballR, 0, ball[1].Z - (float)2.5 * ballR);
+>>>>>>> origin/master
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(0), 30, 100, CycleTime, ref times);
                     if (getDistance(temp, my_fish2.body) < 100)
                     {
@@ -612,7 +616,7 @@ namespace URWPGSim2D.Strategy
 					break;
 
                 case 6: //移动到球2的后方
-                    temp = new xna.Vector3(ball[2].X + (float)1.5 * ballR, 0, ball[2].Z + (float)1.5 * ballR);
+                    temp = new xna.Vector3(ball[2].X + (float)2.5 * ballR, 0, ball[2].Z + (float)2.5 * ballR);
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(0), 30, 100, CycleTime, ref times);
                     if (getDistance(temp, my_fish1.body) < 100)
                     {
@@ -718,4 +722,3 @@ namespace URWPGSim2D.Strategy
         }
     }
 }
-
