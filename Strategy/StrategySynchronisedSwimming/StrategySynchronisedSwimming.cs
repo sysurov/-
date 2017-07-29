@@ -31,18 +31,19 @@ namespace URWPGSim2D.Strategy {
 		public static int completeCircle = 0;
 		Decision[] preDecisions = null;
 
-		// 表演阶段标记
-		private static int stage = 0;
+		// ****************
+		// ** 表演阶段标记 **
+		// ****************
+ 		private static int stage = 3;
 
 		private static int[] timeForPoseToPose = new int[11];
-		private static bool completeFlag = false;
 
 		/// <summary>
 		/// 获取队伍名称 在此处设置参赛队伍的名称
 		/// </summary>
 		/// <returns>队伍名称字符串</returns>
 		public string GetTeamName() {
-			return "中大检修队 v1.2";
+			return "中东检修队 v1.2";
 		}
 
 		public static int isDirectionRight(float targetDir, float dir) {
@@ -358,8 +359,8 @@ namespace URWPGSim2D.Strategy {
 
 					// 时限1分钟
 					timingLimit = (2) * 30 * 1000 / mission.CommonPara.MsPerCycle;
-					// 结尾等待时间设定为5秒
-					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+					// 结尾等待时间设定为10秒
+					endingDelay = 2 * (5) * 1000 / mission.CommonPara.MsPerCycle;
 				} else if (state == 1) {
 					// 装载10的第一个状态
 					for (int i = 0; i < 9; i++) {
@@ -404,23 +405,6 @@ namespace URWPGSim2D.Strategy {
 						count--;
 						s_d = float.MaxValue;
 					}
-					//暂时弃用的算法v0.1
-					/*for (int i = 0; i < 9; i++)
-                    {
-                        for (int j = 0; j < 9; j++)
-                        {
-                            if (DesUse[j])
-                                continue;
-                            float tmp = getVectorDistance(targetVector[j], fish[i].PositionMm);
-                            if (tmp < distance)
-                            {
-                                distance = tmp;
-                                p_d = j;
-                            }
-                        }
-                        FishDes[i] = p_d;
-                        DesUse[p_d] = true;
-                    }*/
 
 					state = 2;
 				} else if (state == 2) {
@@ -446,6 +430,7 @@ namespace URWPGSim2D.Strategy {
 
 						stage++;
 					}
+
 				} else if (state == 3) {
 					if (timer >= endingDelay) {
 						// 5秒计时结束
@@ -520,9 +505,9 @@ namespace URWPGSim2D.Strategy {
 						timeForPoseToPose[i] = 0;
 					}
 					// 时限1分钟
-					timingLimit = (20) * 30 * 1000 / mission.CommonPara.MsPerCycle;
-					// 结尾等待时间设定为5秒
-					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+					timingLimit = (2) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+					// 结尾等待时间设定为10秒
+					endingDelay = 2 * (5) * 1000 / mission.CommonPara.MsPerCycle;
 
 					state = 1;
 				} else if (state == 1) {
@@ -572,8 +557,6 @@ namespace URWPGSim2D.Strategy {
 				} else if (state == 2) {
 					// 行动
 					for (int i = 0; i < 9; i++) {
-						//StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
-						// fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref tPoseToPose, eqFlag);
 						fish2Point(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
 					}
 
@@ -606,9 +589,7 @@ namespace URWPGSim2D.Strategy {
 				} else if (state == 5) {
 					// 行动
 					for (int i = 0; i < 9; i++) {
-						//StrategyHelper.Helpers.PoseToPose(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], 30.0f, 10, msPerCycle, ref times); 
-						// fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref tPoseToPose, eqFlag);
-						fish2Point(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
+						fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[FishDes[i]], targetAngle[FishDes[i]], i + 2, ref timeForPoseToPose, eqFlag);
 					}
 					if (allEqual(eqFlag, 2, 3, 10)) {
 						for (int i = 0; i < 11; i++) {
@@ -641,8 +622,11 @@ namespace URWPGSim2D.Strategy {
 		}
 		#endregion
 
-
+		// **************
+		// ** 已弃用动作 **
+		// **************
 		#region Chinese_Ren
+
 		//汉字造型“人”
 		//陈姝睿
 		class Chinese_REN {
@@ -849,10 +833,9 @@ namespace URWPGSim2D.Strategy {
 				if (state == 0) {
 					// 初始化
 					// 计时上限设置为1.5分钟
-					// 07.23测试设置为10分钟
-					timingLimit = (20) * 30 * 1000 / mission.CommonPara.MsPerCycle;
-					// 结尾等待时间设定为5秒
-					endingDelay = (5) * 1000 / mission.CommonPara.MsPerCycle;
+					timingLimit = (3) * 30 * 1000 / mission.CommonPara.MsPerCycle;
+					// 结尾等待时间设定为10秒
+					endingDelay = 2 * (5) * 1000 / mission.CommonPara.MsPerCycle;
 
 					for (int i = 0; i < 11; i++) {
 						eqFlag[i] = 0;
@@ -1000,7 +983,13 @@ namespace URWPGSim2D.Strategy {
 			// 4. 9,10号向上运动，其他鱼散开
 
 			// 状态机
-			private static int state = 0;
+			enum States {	INIT,
+							FOLLOW_UPDATE, FOLLOW_EXEC,
+							FWORK_GATHER_INIT, FWORK_GATHER_EXEC,
+							FWORK_MOVEUP_INIT, FWORK_MOVEUP_EXEC,
+							FWORK_SPREAD_INIT, FWORK_SPREAD_EXEC };
+
+			private static States state = 0;
 			// 计时器与超时
 			private static long timer = 0;
 			// 该动作不需要总时限，直接坚持到整个表演的5分钟结束
@@ -1013,22 +1002,34 @@ namespace URWPGSim2D.Strategy {
 			private static xna.Vector3[] targetVector = new xna.Vector3[9];
 			private static float[] targetAngle = new float[9];
 
-			// 一侧围观鱼坐标与位置，另一半对应
-			private static int[] staticFishX = { -1730, -1060, -500, 0, 500, 1060, 1730 };
-			private static int[] staticFishZ = { 1430, 1320, 1245, 1165, 1245, 1320, 1430 };
-			private static float[] staticFishAngle = { 0, -20, -40, -90, -140, -160, -179 };
+			// 第一阶段：围观
+			// 最后两个数据无效
+			private static int[] sFishX = { -1730, -1060, -500, 0, 500, 1060, 1730, 0, 0 };
+			private static int[] sFishZ = { 1430, 1320, 1245, 1165, 1245, 1320, 1430, 0, 0 };
+			private static float[] sFishAngle = { 0, -20, -40, -90, -140, -160, -179, 0, 0 };
 
-			private static int[] staticFishX2 = { -450, -300, -150, 0, 150, 300, 450 };
-			private static int[] staticFishZ2 = { 300, 200, 100, 0, 100, 200, 300 };
+			// 第二阶段：聚拢
+			private static int[] sFishX2 = { -1600, -1450, -1300, 0, 1300, 1450, 1600, -1150, 1150 };
+			private static int[] sFishZ2 = { 800, 700, 700, 1000, 700, 700, 800, 800, 800 };
+			private static int[] sFishAngle2 = { -90, -90, -90, -90, -90, -90, -90, -90, -90 };
 
+			// 第三阶段：向上运动
+			// 第四阶段：散开
+			/*
 			private static int[] spreadVCode = { 4, 5, 6, 6, 6, 5, 4 };
 			private static int[] spreadVCode1 = { 0, 5, 6, 8, 6, 5, 0 };
 			private static int[] spreadVCode2 = { 0, 0, 6, 8, 6, 0, 0 };
 			private static int[] spreadTCode = { 0, 2, 4, 5, 9, 12, 14 };
 			private static int[] spreadTCode1 = { 7, 0, 2, 4, 12, 14, 7 };
 			private static int[] spreadTCode2 = { 7, 7, 2, 2, 12, 7, 7 };
+			*/
+			private static int[] spreadVCode = { 5, 6, 6, 1, 6, 6, 5, 5, 5 };
+			private static int[] spreadTCode = { 0, 4, 9, 0, 4, 9, 14, 14, 0 };
 
-			private static bool[] spreadDoneMarker = { false, false, false, false, false, false, false };
+			private static int[] spreadVCode1 = { 0, 5, 5, 1, 5, 5, 0, 0, 0 };
+			private static int[] spreadTCode1 = { 7, 2, 12, 0, 7, 2, 14, 7, 7 };
+
+			private static bool[] spreadDoneMarker = { false, false, false, false, false, false, false, false, false };
 
 			// 运动的鱼与黄鱼的距离，转圈运动速度（增量）
 			private const int motionFishProximity = 600;
@@ -1070,7 +1071,7 @@ namespace URWPGSim2D.Strategy {
 					fish[i] = mission.TeamsRef[teamId].Fishes[i + 1];
 
 				switch (state) {
-					case 0: {
+					case States.INIT: {
 							// 初始化
 							// 第一阶段计时上限1min
 							// 7.26测试设置为0.5min
@@ -1082,9 +1083,9 @@ namespace URWPGSim2D.Strategy {
 
 							#region // 产生围观鱼的目标点
 							for (int i = 0; i < 7; i++) {
-								targetVector[i].X = staticFishX[i];
-								targetVector[i].Z = staticFishZ[i];
-								targetAngle[i] = deg2rad(staticFishAngle[i]);
+								targetVector[i].X = sFishX[i];
+								targetVector[i].Z = sFishZ[i];
+								targetAngle[i] = deg2rad(sFishAngle[i]);
 							} 
 							#endregion
 
@@ -1092,10 +1093,10 @@ namespace URWPGSim2D.Strategy {
 								eqFlag[i] = 0;
 								timeForPoseToPose[i] = 0;
 							}
-							state = 1;
+							state = States.FOLLOW_UPDATE;
 						}
 						break;
-					case 1: {
+					case States.FOLLOW_UPDATE: {
 							// 第一阶段第一步：产生运动鱼的新坐标
 							// Motion #1
 							/*
@@ -1138,12 +1139,12 @@ namespace URWPGSim2D.Strategy {
 							xna.Vector3 mFishVarPoint8 = new xna.Vector3();
 							float mFishDistance7 = ((float)(motionFishProximity * Math.Sin(motionFishArcAngle)));
 							mFishDistance7 = (mFishDistance7 > 0f) ? mFishDistance7 : 0;
-							mFishVarPoint7.X = (float)((mFishDistance7 + mFishInProximity) * Math.Sin(rFishBaseDir + deg2rad(90)));
-							mFishVarPoint7.Z = (float)((mFishDistance7 + mFishInProximity) * Math.Cos(rFishBaseDir + deg2rad(90)));
+							mFishVarPoint7.X = (float)((mFishDistance7 + mFishInProximity) * Math.Cos(rFishBaseDir + deg2rad(90)));
+							mFishVarPoint7.Z = (float)((mFishDistance7 + mFishInProximity) * Math.Sin(rFishBaseDir + deg2rad(90)));
 
 							float motionFishDistance8 = (float)(motionFishProximity * Math.Sin(motionFishArcAngle));
-							mFishVarPoint8.X = -(float)((mFishDistance7 + mFishInProximity) * Math.Sin(rFishBaseDir + deg2rad(90)));
-							mFishVarPoint8.Z = -(float)((mFishDistance7 + mFishInProximity) * Math.Cos(rFishBaseDir + deg2rad(90)));
+							mFishVarPoint8.X = -(float)((mFishDistance7 + mFishInProximity) * Math.Cos(rFishBaseDir + deg2rad(90)));
+							mFishVarPoint8.Z = -(float)((mFishDistance7 + mFishInProximity) * Math.Sin(rFishBaseDir + deg2rad(90)));
 
 							targetVector[8] = rFishLPoint + mFishVarPoint8;
 							targetAngle[8] = rFishBaseDir;
@@ -1152,10 +1153,10 @@ namespace URWPGSim2D.Strategy {
 
 							motionFishArcAngle += motionFishArcAngleIncrement;
 
-							state = 2;
+							state = States.FOLLOW_EXEC;
 						}
 						break;
-					case 2: {
+					case States.FOLLOW_EXEC: {
 							// 第一阶段第二步：开启追鱼模式
 							for (int i = 0; i < 7; i++) {
 								int j = i;
@@ -1168,75 +1169,128 @@ namespace URWPGSim2D.Strategy {
 							if (timer >= timingLimit[0]) {
 								for (int i = 0; i < 9; i++)
 									stopFish(ref decisions[i], i + 2);
-								state = 3;
+								state = States.FWORK_GATHER_INIT;
 							} else
-								state = 1;
+								state = States.FOLLOW_UPDATE;
 
 						}
 						break;
-					case 3: {
+					case States.FWORK_GATHER_INIT: {
 							// 第二阶段第一步，产生目标点
 							// 围观鱼运动到场地中间
-							for (int i = 0; i < 7; i++) {
-								targetVector[i].X = staticFishX2[i];
-								targetVector[i].Z = staticFishZ2[i];
+							// for (int i = 0; i < 7; i++) {
+							for(int i=0; i < 9; i++) {
+								targetVector[i].X = sFishX2[i];
+								targetVector[i].Z = sFishZ2[i];
 								targetAngle[i] = deg2rad(-90);
 							}
 							// 前一阶段陪黄鱼玩的两条鱼运动到底下
+							/*
 							targetVector[7].X = -250;
 							targetVector[7].Z = 1300;
 							targetAngle[7] = deg2rad(60);
 							targetVector[8].X = 250;
 							targetVector[8].Z = 1300;
 							targetAngle[8] = deg2rad(120);
+							*/
 
 							for (int i = 0; i < 11; i++) {
 								eqFlag[i] = 0;
 								timeForPoseToPose[i] = 0;
 							}
 							timer = 0;
-							state = 4;
+							state = States.FWORK_GATHER_EXEC;
 						}
 						break;
-					case 4: {
+					case States.FWORK_GATHER_EXEC: {
 							// 第二阶段第二步：运动，除了9，10外到了就进入下个阶段
-							for (int i = 0; i < 8; i++) {
+							for (int i = 0; i < 9; i++) {
 								int j = i;
 								fish2Point_Fast(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+								// fish2Point_Fast(ref decisions[9], fish[8], targetVector[8], targetAngle[8], 10, ref timeForPoseToPose, eqFlag);
 							}
-							fish2Point_Fast(ref decisions[9], fish[8], targetVector[8], targetAngle[8], 10, ref timeForPoseToPose, eqFlag);
-							if (allEqual(eqFlag, 2, 3, 8)) {
+							
+							if (allEqual(eqFlag, 2, 3, 10)) {
 								for (int i = 0; i < 9; i++) {
 									eqFlag[i] = 0;
 									timeForPoseToPose[i] = 0;
 								}
-								state = 5;
+								state = States.FWORK_MOVEUP_INIT;
 							}
 						}
 						break;
-					case 5: {
-							// 散开
-							for (int i = 1; i < mission.CommonPara.FishCntPerTeam-2; i++) {
-								if (isDirectionInRange(deg2rad(90), mission.TeamsRef[teamId].Fishes[i].VelocityDirectionRad, 0.4f)==0)
-									spreadDoneMarker[i - 1] = true;
+					case States.FWORK_MOVEUP_INIT: {
+							for(int i = 0; i < 9; i++) {
+								targetVector[i].X = mission.TeamsRef[teamId].Fishes[i + 1].PositionMm.X;
+								targetVector[i].Z = 0;
+								targetAngle[i] = deg2rad(-90);
+							}
+							state = States.FWORK_MOVEUP_EXEC;
+						}
+						break;
+					case States.FWORK_MOVEUP_EXEC: {
+							for (int i = 0; i < 9; i++) {
+								int j = i;
+								fish2Point_Fast(ref decisions[j + 1], fish[j], targetVector[i], targetAngle[i], j + 2, ref timeForPoseToPose, eqFlag);
+								// fish2Point_Fast(ref decisions[9], fish[8], targetVector[8], targetAngle[8], 10, ref timeForPoseToPose, eqFlag);
+							}
 
-								if (spreadDoneMarker[i - 1]) {
-									targetVector[i - 1].X = mission.TeamsRef[teamId].Fishes[i].PositionMm.X;
-									targetVector[i - 1].Z = 1300;
-									targetAngle[i - 1] = deg2rad(90);
-									fish2Point_Fast(ref decisions[i], fish[i - 1], targetVector[i - 1], targetAngle[i - 1], i + 1, ref timeForPoseToPose, eqFlag);
-								} else {
-									if (spreadDoneMarker[0] && spreadDoneMarker[6]) {
-										if (spreadDoneMarker[1] && spreadDoneMarker[5]) {
-											decisions[i].VCode = spreadVCode2[i - 1];
-											decisions[i].TCode = spreadTCode2[i - 1];
-										} else {
-											decisions[i].VCode = spreadVCode1[i - 1];
-											decisions[i].TCode = spreadTCode1[i - 1];
-										}
+							if (allEqual(eqFlag, 2, 3, 10)) {
+								for (int i = 0; i < 9; i++) {
+									eqFlag[i] = 0;
+									timeForPoseToPose[i] = 0;
+								}
+								state = States.FWORK_SPREAD_EXEC;
+							}
+						}
+						break;
+
+					/*
+				case States.FWORK_SPREAD_EXEC: {
+						// 散开
+						for (int i = 1; i < mission.CommonPara.FishCntPerTeam-2; i++) {
+							if (isDirectionInRange(deg2rad(90), mission.TeamsRef[teamId].Fishes[i].VelocityDirectionRad, 0.4f)==0)
+								spreadDoneMarker[i - 1] = true;
+
+							if (spreadDoneMarker[i - 1]) {
+								targetVector[i - 1].X = mission.TeamsRef[teamId].Fishes[i].PositionMm.X;
+								targetVector[i - 1].Z = 1300;
+								targetAngle[i - 1] = deg2rad(90);
+								fish2Point_Fast(ref decisions[i], fish[i - 1], targetVector[i - 1], targetAngle[i - 1], i + 1, ref timeForPoseToPose, eqFlag);
+							} else {
+								if (spreadDoneMarker[0] && spreadDoneMarker[6]) {
+									if (spreadDoneMarker[1] && spreadDoneMarker[5]) {
+										decisions[i].VCode = spreadVCode2[i - 1];
+										decisions[i].TCode = spreadTCode2[i - 1];
 									} else {
-										decisions[i].VCode = spreadVCode[i - 1];
-										decisions[i].TCode = spreadTCode[i - 1];
+										decisions[i].VCode = spreadVCode1[i - 1];
+										decisions[i].TCode = spreadTCode1[i - 1];
+									}
+								} else {
+									decisions[i].VCode = spreadVCode[i - 1];
+									decisions[i].TCode = spreadTCode[i - 1];
+								}
+							}
+						}
+					}
+					break;
+					*/
+					case States.FWORK_SPREAD_EXEC: {
+							for(int i = 0; i < 9; i++) {
+								if (isDirectionInRange(deg2rad(90), mission.TeamsRef[teamId].Fishes[i + 1].VelocityDirectionRad, 0.4f) == 0)
+									spreadDoneMarker[i] = true;
+								if (spreadDoneMarker[i]) {
+									targetVector[i].X = mission.TeamsRef[teamId].Fishes[i + 1].PositionMm.X;
+									targetVector[i].Z = 1300;
+									targetAngle[i] = deg2rad(90);
+									fish2Point_Fast(ref decisions[i + 1], fish[i], targetVector[i], targetAngle[i], i + 2, ref timeForPoseToPose, eqFlag);
+								} else {
+									if (spreadDoneMarker[0] && spreadDoneMarker[4] && spreadDoneMarker[7] && spreadDoneMarker[8]) {
+										decisions[i + 1].VCode = spreadVCode1[i];
+										decisions[i + 1].TCode = spreadTCode1[i];
+									} else {
+										decisions[i + 1].VCode = spreadVCode[i];
+										decisions[i + 1].TCode = spreadTCode[i];
 									}
 								}
 							}
@@ -1248,6 +1302,7 @@ namespace URWPGSim2D.Strategy {
 						}
 						break;
 				}
+				// 仿真周期结束，计数器++
 				timer++;
 
 			}
@@ -1358,7 +1413,6 @@ namespace URWPGSim2D.Strategy {
 					break;
 				case 4:
 				default:
-					completeFlag = true;
 					break;
 			}
 
