@@ -111,41 +111,45 @@ namespace URWPGSim2D.Strategy
             return (float)(Math.PI * deg / 180);
         }
 
-		public static int isDirApprox(float targetDir, float dir, float range) {
-			float c = targetDir - dir;
-			if (c > Math.PI)
-				c -= (float)(2 * Math.PI);
-			if (c < -Math.PI)
-				c += (float)(2 * Math.PI);
+        public static int isDirApprox(float targetDir, float dir, float range)
+        {
+            float c = targetDir - dir;
+            if (c > Math.PI)
+                c -= (float)(2 * Math.PI);
+            if (c < -Math.PI)
+                c += (float)(2 * Math.PI);
 
-			if (c > range)
-				return 1;
-			if (c < -range)
-				return -1;
-			else
-				return 0;
+            if (c > range)
+                return 1;
+            if (c < -range)
+                return -1;
+            else
+                return 0;
 
-		}
+        }
 
-		public int rescueTrigger(xna.Vector3 fishVector, xna.Vector3 ballVector, float fishDirection, float targetX) {
-			// 向左推过了
-			if (fishVector.X > ballVector.X && ballVector.X < targetX) {
-				if ((isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0) || (isDirApprox(deg2rad(0), fishDirection, deg2rad(45)) == 0))
-					return 1;
-			}
-			// 反回来向右推过了
-			else if (fishVector.X < ballVector.X && ballVector.X > targetX) {
-				if ((isDirApprox(0, fishDirection, deg2rad(45)) == 0) || isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0)
-					return -1;
-			}
-			return 0;
-		}
+        public int rescueTrigger(xna.Vector3 fishVector, xna.Vector3 ballVector, float fishDirection, float targetX)
+        {
+            // 向左推过了
+            if (fishVector.X > ballVector.X && ballVector.X < targetX)
+            {
+                if ((isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0) || (isDirApprox(deg2rad(0), fishDirection, deg2rad(45)) == 0))
+                    return 1;
+            }
+            // 反回来向右推过了
+            else if (fishVector.X < ballVector.X && ballVector.X > targetX)
+            {
+                if ((isDirApprox(0, fishDirection, deg2rad(45)) == 0) || isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0)
+                    return -1;
+            }
+            return 0;
+        }
 
-		private static int rescueReg1, rescueReg2;
-		private static xna.Vector3 rescueVector1, rescueVector2;
+        private static int rescueReg1, rescueReg2;
+        private static xna.Vector3 rescueVector1, rescueVector2;
 
-		//鱼2的运动
-		public void do_fish2(Mission mission, int teamId)
+        //鱼2的运动
+        public void do_fish2(Mission mission, int teamId)
         {
             CalHol();
             CycleTime = mission.CommonPara.MsPerCycle;
@@ -178,7 +182,7 @@ namespace URWPGSim2D.Strategy
                     //xna.Vector3 temp = new xna.Vector3(1048, 0 ,-556);
                     xna.Vector3 temp = new xna.Vector3(ball[3].X + (float)2 * ballR, 0, ball[3].Z - (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(30), 30, 100, CycleTime, ref times);
-                    if (getDistance(temp, my_fish2.head) < 100)
+                    if (getDistance(temp, my_fish2.body) < 100)
                     {
                         state2++;
                         times = 0;
@@ -189,7 +193,7 @@ namespace URWPGSim2D.Strategy
                     temp = new xna.Vector3(ball[3].X + (float)1.5 * ballR, 0, ball[3].Z - (float)1.5 * ballR);
                     float angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与球的方向
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, angle, 30, 50, CycleTime, ref times);
-                    if (getDistance(temp, my_fish2.head) < 100)
+                    if (getDistance(temp, my_fish2.body) < 100)
                     {
                         state2++;
                         times = 0;
@@ -200,7 +204,7 @@ namespace URWPGSim2D.Strategy
                     //temp = new xna.Vector3(ball[3].X - 2 * ballR, 0, ball[3].Z - 3*ballR);
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[3] - ball[3])); //目标点与球的方向
                     temp = new xna.Vector3(ball[3].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[3].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     timeControl2++;
                     if (b3 == 1)
                     {
@@ -219,51 +223,56 @@ namespace URWPGSim2D.Strategy
                         times = 0;
                     }
 
-					rescueReg2 = rescueTrigger(rFish2.PositionMm, ball[3], rFish2.BodyDirectionRad, hole[3].X);
-					switch (rescueReg2) {
-						case 1:
-							state2 = 20;
-							rescueVector2 = ball[3];
-							// 左下抢救
-							rescueVector2.X -= 200;
-							rescueVector2.Z += 200;
-							break;
-						case -1:
-							state2 = 20;
-							rescueVector2 = ball[3];
-							// 右下抢救
-							rescueVector2.X += 200;
-							rescueVector2.Z -= 200;
-							break;
-						case 0:
-							break;
-					}
+                    rescueReg2 = rescueTrigger(rFish2.PositionMm, ball[3], rFish2.BodyDirectionRad, hole[3].X);
+                    switch (rescueReg2)
+                    {
+                        case 1:
+                            state2 = 20;
+                            rescueVector2 = ball[3];
+                            // 左下抢救
+                            rescueVector2.X -= 200;
+                            rescueVector2.Z += 200;
+                            break;
+                        case -1:
+                            state2 = 20;
+                            rescueVector2 = ball[3];
+                            // 右下抢救
+                            rescueVector2.X += 200;
+                            rescueVector2.Z -= 200;
+                            break;
+                        case 0:
+                            break;
+                    }
 
-					break;
-				case 20:
-					Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish2.PositionMm, rescueVector2) <= 50) {
-						if (rescueReg2 == 1) {
-							// 到左边
-							rescueVector2 = ball[3];
-							rescueVector2.X -= 400;
-						} else {
-							rescueVector2 = ball[3];
-							rescueVector2.X += 400;
-						}
-						state2 = 21;
-					}
-					break;
-				case 21:
-					Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
-						state2 = 2;
-					break;
+                    break;
+                case 20:
+                    Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
+                    {
+                        if (rescueReg2 == 1)
+                        {
+                            // 到左边
+                            rescueVector2 = ball[3];
+                            rescueVector2.X -= 400;
+                        }
+                        else
+                        {
+                            rescueVector2 = ball[3];
+                            rescueVector2.X += 400;
+                        }
+                        state2 = 21;
+                    }
+                    break;
+                case 21:
+                    Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
+                        state2 = 2;
+                    break;
 
-				case 3://游到球0上方
+                case 3://游到球0上方
                     temp = new xna.Vector3(ball[0].X - (float)1 * ballR, 0, ball[0].Z - (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(90), 30, 100, CycleTime, ref times);
-                    if (getDistance(temp, my_fish2.head) < 100)
+                    if (getDistance(temp, my_fish2.body) < 100)
                     {
                         state2++;
                         times = 0;
@@ -273,8 +282,8 @@ namespace URWPGSim2D.Strategy
                 case 4://推球0到球下方的位置
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(p0 - ball[0])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[0].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[0].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
-                    if (getDistance(p0, my_fish2.head) < 100)
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(p0, my_fish2.body) < 100)
                     {
                         state2++;
                         times = 0;
@@ -283,7 +292,7 @@ namespace URWPGSim2D.Strategy
                 case 5://将鱼0推入洞
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[0] - ball[0])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[0].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[0].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     timeControl2++;
                     if (b0 == 1)
                     {
@@ -302,53 +311,58 @@ namespace URWPGSim2D.Strategy
                         times = 0;
                     }
 
-					rescueReg2 = rescueTrigger(rFish2.PositionMm, ball[0], rFish2.BodyDirectionRad, hole[0].X);
-					switch (rescueReg2) {
-						case 1:
-							state2 = 50;
-							rescueVector2 = ball[0];
-							// 左下抢救
-							rescueVector2.X -= 200;
-							rescueVector2.Z += 200;
-							break;
-						case -1:
-							state2 = 50;
-							rescueVector2 = ball[0];
-							// 右下抢救
-							rescueVector2.X += 200;
-							rescueVector2.Z -= 200;
-							break;
-						case 0:
-							break;
-					}
+                    rescueReg2 = rescueTrigger(rFish2.PositionMm, ball[0], rFish2.BodyDirectionRad, hole[0].X);
+                    switch (rescueReg2)
+                    {
+                        case 1:
+                            state2 = 50;
+                            rescueVector2 = ball[0];
+                            // 左下抢救
+                            rescueVector2.X -= 200;
+                            rescueVector2.Z += 200;
+                            break;
+                        case -1:
+                            state2 = 50;
+                            rescueVector2 = ball[0];
+                            // 右下抢救
+                            rescueVector2.X += 200;
+                            rescueVector2.Z -= 200;
+                            break;
+                        case 0:
+                            break;
+                    }
 
-					break;
+                    break;
 
-				case 50:
-					Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish2.PositionMm, rescueVector2) <= 50) {
-						if (rescueReg2 == 1) {
-							// 到左边
-							rescueVector2 = ball[0];
-							rescueVector2.X -= 400;
-						} else {
-							rescueVector2 = ball[0];
-							rescueVector2.X += 400;
-						}
-						state2 = 51;
-					}
-					break;
-				case 51:
-					Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
-						state2 = 5;
-					break;
+                case 50:
+                    Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
+                    {
+                        if (rescueReg2 == 1)
+                        {
+                            // 到左边
+                            rescueVector2 = ball[0];
+                            rescueVector2.X -= 400;
+                        }
+                        else
+                        {
+                            rescueVector2 = ball[0];
+                            rescueVector2.X += 400;
+                        }
+                        state2 = 51;
+                    }
+                    break;
+                case 51:
+                    Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
+                        state2 = 5;
+                    break;
 
 
                 case 6: //移动到球1的后方
                     temp = new xna.Vector3(ball[1].X + (float)2.5 * ballR, 0, ball[1].Z - (float)2.5 * ballR);
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(0), 30, 100, CycleTime, ref times);
-                    if (getDistance(temp, my_fish2.head) < 100)
+                    if (getDistance(temp, my_fish2.body) < 100)
                     {
                         state2++;
                         times = 0;
@@ -358,7 +372,7 @@ namespace URWPGSim2D.Strategy
                 case 7:
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[1] - ball[1])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[1].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[1].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[1], rFish2, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     timeControl2++;
                     if (b1 == 1)
                     {
@@ -374,49 +388,54 @@ namespace URWPGSim2D.Strategy
                         times = 0;
                         timeControl2 = 0;
                     }
-					rescueReg2 = rescueTrigger(rFish2.PositionMm, ball[1], rFish2.BodyDirectionRad, hole[1].X);
-					switch (rescueReg2) {
-						case 1:
-							state2 = 70;
-							rescueVector2 = ball[1];
-							// 左下抢救
-							rescueVector2.X -= 200;
-							rescueVector2.Z += 200;
-							break;
-						case -1:
-							state2 = 70;
-							rescueVector2 = ball[1];
-							// 右下抢救
-							rescueVector2.X += 200;
-							rescueVector2.Z -= 200;
-							break;
-						case 0:
-							break;
-					}
+                    rescueReg2 = rescueTrigger(rFish2.PositionMm, ball[1], rFish2.BodyDirectionRad, hole[1].X);
+                    switch (rescueReg2)
+                    {
+                        case 1:
+                            state2 = 70;
+                            rescueVector2 = ball[1];
+                            // 左下抢救
+                            rescueVector2.X -= 200;
+                            rescueVector2.Z += 200;
+                            break;
+                        case -1:
+                            state2 = 70;
+                            rescueVector2 = ball[1];
+                            // 右下抢救
+                            rescueVector2.X += 200;
+                            rescueVector2.Z -= 200;
+                            break;
+                        case 0:
+                            break;
+                    }
 
-					break;
+                    break;
 
-				case 70:
-					Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish2.PositionMm, rescueVector2) <= 50) {
-						if (rescueReg2 == 1) {
-							// 到左边
-							rescueVector2 = ball[1];
-							rescueVector2.X -= 400;
-						} else {
-							rescueVector2 = ball[1];
-							rescueVector2.X += 400;
-						}
-						state2 = 71;
-					}
-					break;
-				case 71:
-					Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
-						state2 = 7;
-					break;
+                case 70:
+                    Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
+                    {
+                        if (rescueReg2 == 1)
+                        {
+                            // 到左边
+                            rescueVector2 = ball[1];
+                            rescueVector2.X -= 400;
+                        }
+                        else
+                        {
+                            rescueVector2 = ball[1];
+                            rescueVector2.X += 400;
+                        }
+                        state2 = 71;
+                    }
+                    break;
+                case 71:
+                    Helpers.Dribble(ref decisions[1], rFish2, rescueVector2, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish2.PositionMm, rescueVector2) <= 50)
+                        state2 = 7;
+                    break;
 
-				case 8:
+                case 8:
                     if (!inHole[3])
                         state2 = 0;
                     if (!inHole[0])
@@ -463,7 +482,7 @@ namespace URWPGSim2D.Strategy
                 case 0://来到画面右下方
                     xna.Vector3 temp = new xna.Vector3(ball[5].X + (float)2 * ballR, 0, ball[5].Z + (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(-30), 30, 100, CycleTime, ref times);
-                    if (getDistance(temp, my_fish1.head) < 100)
+                    if (getDistance(temp, my_fish1.body) < 100)
                     {
                         state1++;
                         times = 0;
@@ -474,7 +493,7 @@ namespace URWPGSim2D.Strategy
                     temp = new xna.Vector3(ball[5].X + (float)1.5 * ballR, 0, ball[5].Z + (float)1.5 * ballR);
                     float angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[5] - ball[5])); //目标点与球的方向
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, angle, 30, 50, CycleTime, ref times);
-                    if (getDistance(temp, my_fish1.head) < 100)
+                    if (getDistance(temp, my_fish1.body) < 100)
                     {
                         state1++;
                         times = 0;
@@ -485,7 +504,7 @@ namespace URWPGSim2D.Strategy
 
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[5] - ball[5])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[5].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[5].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     timeControl1++;
                     if (b5 == 1)
                     {
@@ -504,51 +523,56 @@ namespace URWPGSim2D.Strategy
                         timeControl1 = 0;
                     }
 
-					rescueReg1 = rescueTrigger(rFish1.PositionMm, ball[5], rFish1.BodyDirectionRad, hole[5].X);
-					switch (rescueReg1) {
-						case 1:
-							state1 = 20;
-							rescueVector1 = ball[5];
-							// 左下抢救
-							rescueVector1.X -= 200;
-							rescueVector1.Z += 200;
-							break;
-						case -1:
-							state1 = 20;
-							rescueVector1 = ball[5];
-							// 右下抢救
-							rescueVector1.X += 200;
-							rescueVector1.Z -= 200;
-							break;
-						case 0:
-							break;
-					}
+                    rescueReg1 = rescueTrigger(rFish1.PositionMm, ball[5], rFish1.BodyDirectionRad, hole[5].X);
+                    switch (rescueReg1)
+                    {
+                        case 1:
+                            state1 = 20;
+                            rescueVector1 = ball[5];
+                            // 左下抢救
+                            rescueVector1.X -= 200;
+                            rescueVector1.Z += 200;
+                            break;
+                        case -1:
+                            state1 = 20;
+                            rescueVector1 = ball[5];
+                            // 右下抢救
+                            rescueVector1.X += 200;
+                            rescueVector1.Z -= 200;
+                            break;
+                        case 0:
+                            break;
+                    }
 
-					break;
-				case 20:
-					Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish1.PositionMm, rescueVector1) <= 50) {
-						if (rescueReg1 == 1) {
-							// 到左边
-							rescueVector1 = ball[5];
-							rescueVector1.X -= 400;
-						} else {
-							rescueVector1 = ball[5];
-							rescueVector1.X += 400;
-						}
-						state1 = 21;
-					}
-					break;
-				case 21:
-					Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
-						state1 = 2;
-					break;
+                    break;
+                case 20:
+                    Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
+                    {
+                        if (rescueReg1 == 1)
+                        {
+                            // 到左边
+                            rescueVector1 = ball[5];
+                            rescueVector1.X -= 400;
+                        }
+                        else
+                        {
+                            rescueVector1 = ball[5];
+                            rescueVector1.X += 400;
+                        }
+                        state1 = 21;
+                    }
+                    break;
+                case 21:
+                    Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
+                        state1 = 2;
+                    break;
 
                 case 3://游到球4下方
                     temp = new xna.Vector3(ball[4].X + (float)0.5 * ballR, 0, ball[4].Z + (float)3 * ballR);
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(270), 30, 100, CycleTime, ref times);
-                    if (getDistance(temp, my_fish1.head) < 100)
+                    if (getDistance(temp, my_fish1.body) < 100)
                     {
                         p4 = new xna.Vector3(ball[4].X - ballR, 0, ball[4].Z - 3 * ballR);
                         state1++;
@@ -559,8 +583,8 @@ namespace URWPGSim2D.Strategy
                 case 4://推鱼到鱼上方的位置
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(p4 - ball[4])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[4].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[4].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
-                    if (getDistance(p4, my_fish1.head) < 100)
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(p4, my_fish1.body) < 100)
                     {
                         state1++;
                         times = 0;
@@ -570,7 +594,7 @@ namespace URWPGSim2D.Strategy
                 case 5: //将球4推入洞
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[4] - ball[4])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[4].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[4].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     timeControl1++;
                     if (b4 == 1)
                     {
@@ -587,51 +611,56 @@ namespace URWPGSim2D.Strategy
                         times = 0;
                         timeControl1 = 0;
                     }
-					rescueReg1 = rescueTrigger(rFish1.PositionMm, ball[4], rFish1.BodyDirectionRad, hole[4].X);
-					switch (rescueReg1) {
-						case 1:
-							state1 = 50;
-							rescueVector1 = ball[4];
-							// 左下抢救
-							rescueVector1.X -= 200;
-							rescueVector1.Z += 200;
-							break;
-						case -1:
-							state1 = 50;
-							rescueVector1 = ball[4];
-							// 右下抢救
-							rescueVector1.X += 200;
-							rescueVector1.Z -= 200;
-							break;
-						case 0:
-							break;
-					}
+                    rescueReg1 = rescueTrigger(rFish1.PositionMm, ball[4], rFish1.BodyDirectionRad, hole[4].X);
+                    switch (rescueReg1)
+                    {
+                        case 1:
+                            state1 = 50;
+                            rescueVector1 = ball[4];
+                            // 左下抢救
+                            rescueVector1.X -= 200;
+                            rescueVector1.Z += 200;
+                            break;
+                        case -1:
+                            state1 = 50;
+                            rescueVector1 = ball[4];
+                            // 右下抢救
+                            rescueVector1.X += 200;
+                            rescueVector1.Z -= 200;
+                            break;
+                        case 0:
+                            break;
+                    }
 
-					break;
-				case 50:
-					Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish1.PositionMm, rescueVector1) <= 50) {
-						if (rescueReg1 == 1) {
-							// 到左边
-							rescueVector1 = ball[4];
-							rescueVector1.X -= 400;
-						} else {
-							rescueVector1 = ball[4];
-							rescueVector1.X += 400;
-						}
-						state1 = 51;
-					}
-					break;
-				case 51:
-					Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
-						state1 = 5;
-					break;
+                    break;
+                case 50:
+                    Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
+                    {
+                        if (rescueReg1 == 1)
+                        {
+                            // 到左边
+                            rescueVector1 = ball[4];
+                            rescueVector1.X -= 400;
+                        }
+                        else
+                        {
+                            rescueVector1 = ball[4];
+                            rescueVector1.X += 400;
+                        }
+                        state1 = 51;
+                    }
+                    break;
+                case 51:
+                    Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
+                        state1 = 5;
+                    break;
 
                 case 6: //移动到球2的后方
                     temp = new xna.Vector3(ball[2].X + (float)2.5 * ballR, 0, ball[2].Z + (float)2.5 * ballR);
                     Helpers.PoseToPose(ref decisions[0], rFish1, temp, deg2rad(0), 30, 100, CycleTime, ref times);
-                    if (getDistance(temp, my_fish1.head) < 100)
+                    if (getDistance(temp, my_fish1.body) < 100)
                     {
                         state1++;
                         times = 0;
@@ -640,7 +669,7 @@ namespace URWPGSim2D.Strategy
                 case 7:
                     angle = xna.MathHelper.ToRadians((float)Helpers.GetAngleDegree(hole[2] - ball[2])); //目标点与鱼的方向
                     temp = new xna.Vector3(ball[2].X - (float)1.1 * ballR * (float)Math.Cos(angle), 0, ball[2].Z - (float)1.1 * ballR * (float)Math.Sin(angle));
-                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 3, 3, 150, 7, 5, 5, CycleTime, true);
+                    Helpers.Dribble(ref decisions[0], rFish1, temp, angle, 6, 6, 150, 7, 5, 5, CycleTime, true);
                     timeControl1++;
                     if (b2 == 1)
                     {
@@ -657,48 +686,53 @@ namespace URWPGSim2D.Strategy
                         timeControl1 = 0;
                     }
 
-					rescueReg1 = rescueTrigger(rFish1.PositionMm, ball[2], rFish1.BodyDirectionRad, hole[2].X);
-					switch (rescueReg1) {
-						case 1:
-							state1 = 70;
-							rescueVector1 = ball[2];
-							// 左下抢救
-							rescueVector1.X -= 200;
-							rescueVector1.Z += 200;
-							break;
-						case -1:
-							state1 = 70;
-							rescueVector1 = ball[2];
-							// 右下抢救
-							rescueVector1.X += 200;
-							rescueVector1.Z -= 200;
-							break;
-						case 0:
-							break;
-					}
+                    rescueReg1 = rescueTrigger(rFish1.PositionMm, ball[2], rFish1.BodyDirectionRad, hole[2].X);
+                    switch (rescueReg1)
+                    {
+                        case 1:
+                            state1 = 70;
+                            rescueVector1 = ball[2];
+                            // 左下抢救
+                            rescueVector1.X -= 200;
+                            rescueVector1.Z += 200;
+                            break;
+                        case -1:
+                            state1 = 70;
+                            rescueVector1 = ball[2];
+                            // 右下抢救
+                            rescueVector1.X += 200;
+                            rescueVector1.Z -= 200;
+                            break;
+                        case 0:
+                            break;
+                    }
 
-					break;
-				case 70:
-					Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish1.PositionMm, rescueVector1) <= 50) {
-						if (rescueReg1 == 1) {
-							// 到左边
-							rescueVector1 = ball[2];
-							rescueVector1.X -= 400;
-						} else {
-							rescueVector1 = ball[2];
-							rescueVector1.X += 400;
-						}
-						state1 = 71;
-					}
-					break;
-				case 71:
-					Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
-					if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
-						state1 = 7;
-					break;
+                    break;
+                case 70:
+                    Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
+                    {
+                        if (rescueReg1 == 1)
+                        {
+                            // 到左边
+                            rescueVector1 = ball[2];
+                            rescueVector1.X -= 400;
+                        }
+                        else
+                        {
+                            rescueVector1 = ball[2];
+                            rescueVector1.X += 400;
+                        }
+                        state1 = 71;
+                    }
+                    break;
+                case 71:
+                    Helpers.Dribble(ref decisions[0], rFish1, rescueVector1, 0, 20f, 30f, 150, 7, 5, 5, CycleTime, true);
+                    if (getDistance(rFish1.PositionMm, rescueVector1) <= 50)
+                        state1 = 7;
+                    break;
 
-				case 8:
+                case 8:
                     if (!inHole[5])
                         state1 = 0;
                     if (!inHole[4])
