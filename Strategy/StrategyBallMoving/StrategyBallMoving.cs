@@ -111,17 +111,34 @@ namespace URWPGSim2D.Strategy
             return (float)(Math.PI * deg / 180);
         }
 
-		public int rescueTrigger(xna.Vector3 fishVector, xna.Vector3 ballVector, float fishDirection, float targetX) {
-			// 向左推过了
-			if (fishVector.X > ballVector.X && ballVector.X < targetX)
-				//if (isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0)
+		public static int isDirApprox(float targetDir, float dir, float range) {
+			float c = targetDir - dir;
+			if (c > Math.PI)
+				c -= (float)(2 * Math.PI);
+			if (c < -Math.PI)
+				c += (float)(2 * Math.PI);
+
+			if (c > range)
 				return 1;
-			// 反回来向右推过了
-			else if (fishVector.X < ballVector.X && ballVector.X > targetX)
-				// if (isDirApprox(0, fishDirection, deg2rad(45)) == 0)
+			if (c < -range)
 				return -1;
 			else
 				return 0;
+
+		}
+
+		public int rescueTrigger(xna.Vector3 fishVector, xna.Vector3 ballVector, float fishDirection, float targetX) {
+			// 向左推过了
+			if (fishVector.X > ballVector.X && ballVector.X < targetX) {
+				if ((isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0) || (isDirApprox(deg2rad(0), fishDirection, deg2rad(45)) == 0))
+					return 1;
+			}
+			// 反回来向右推过了
+			else if (fishVector.X < ballVector.X && ballVector.X > targetX) {
+				if ((isDirApprox(0, fishDirection, deg2rad(45)) == 0) || isDirApprox(deg2rad(180), fishDirection, deg2rad(45)) == 0)
+					return -1;
+			}
+			return 0;
 		}
 
 		private static int rescueReg1, rescueReg2;
@@ -329,11 +346,7 @@ namespace URWPGSim2D.Strategy
 
 
                 case 6: //移动到球1的后方
-<<<<<<< HEAD
-                    temp = new xna.Vector3(ball[1].X + (float)1.5 * ballR, 0, ball[1].Z - (float)1.5 * ballR);
-=======
                     temp = new xna.Vector3(ball[1].X + (float)2.5 * ballR, 0, ball[1].Z - (float)2.5 * ballR);
->>>>>>> origin/master
                     Helpers.PoseToPose(ref decisions[1], rFish2, temp, deg2rad(0), 30, 100, CycleTime, ref times);
                     if (getDistance(temp, my_fish2.head) < 100)
                     {
